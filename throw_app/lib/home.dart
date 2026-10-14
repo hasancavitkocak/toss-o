@@ -226,8 +226,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final r = fresh.first;
     _showBanner(_BannerInfo(
       person: r.user,
-      title: txt.sentYouRequest(r.user.name),
-      sub: '@${r.user.username} · ${r.user.location}',
+      meta: '@${r.user.username} · ${r.user.location}',
+      message: txt.sentYouRequest,
+      icon: Icons.person_add_alt_1_rounded,
       action: txt.see,
       onTap: _openFriends,
     ));
@@ -252,8 +253,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final l = fresh.first;
       _showBanner(_BannerInfo(
         person: l.from!,
-        title: txt.sentYouPlane(l.from!.name),
-        sub: '${l.from!.location} · ${txt.km(l.distanceKm)}',
+        meta: '${l.from!.location} · ${txt.km(l.distanceKm)}',
+        message: txt.sentYouPlane,
+        icon: Icons.send_rounded,
         action: txt.open,
         letter: l,
         onTap: () => _openLetter(l),
@@ -1185,22 +1187,60 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 20)],
         ),
         child: Row(children: [
-          Avatar(person: b.person, size: 38),
+          // Avatar ve köşesinde bildirimin türü (uçak / arkadaşlık isteği)
+          SizedBox(
+            width: 44,
+            height: 42,
+            child: Stack(clipBehavior: Clip.none, children: [
+              Avatar(person: b.person, size: 40),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: kRed,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: kNavy, width: 2),
+                  ),
+                  child: Transform.rotate(
+                    angle: b.icon == Icons.send_rounded ? -.5 : 0,
+                    child: Icon(b.icon, size: 10, color: Colors.white),
+                  ),
+                ),
+              ),
+            ]),
+          ),
           const SizedBox(width: 10),
+          // İsim ve yer bir satır, ne olduğu bir satır: uzun isimde de taşmaz
           Expanded(
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(b.title,
-                      style:
-                          ui(14, weight: FontWeight.w700, color: Colors.white)),
-                  Text(b.sub,
+                  Text.rich(
+                    TextSpan(
+                      text: b.person.name,
+                      style: ui(14.5,
+                          weight: FontWeight.w800, color: Colors.white),
+                      children: [
+                        TextSpan(
+                            text: '  ${b.meta}',
+                            style: ui(11.5, color: Colors.white54)),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(b.message,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: ui(12, color: Colors.white70)),
+                      style: ui(12.5, color: Colors.white70)),
                 ]),
           ),
+          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             decoration: BoxDecoration(
@@ -1279,13 +1319,15 @@ class _LocationSheetState extends State<_LocationSheet> {
 /// Üstten düşen bildirim: gelen mektup ya da arkadaşlık isteği
 class _BannerInfo {
   final Person person;
-  final String title, sub, action;
+  final String meta, message, action;
+  final IconData icon;
   final VoidCallback onTap;
   final Letter? letter;
   const _BannerInfo(
       {required this.person,
-      required this.title,
-      required this.sub,
+      required this.meta,
+      required this.message,
+      required this.icon,
       required this.action,
       required this.onTap,
       this.letter});

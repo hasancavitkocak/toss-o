@@ -88,33 +88,42 @@ class _LettersSheetState extends State<_LettersSheet>
           const Icon(Icons.public, size: 14, color: kMuted),
         ],
       ]),
-      subtitle: Text(l.body.split('\n').first,
-          maxLines: 1, overflow: TextOverflow.ellipsis, style: hand(19, .8)),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(txt.ago(l.sentAt), style: ui(11, color: kMuted)),
-          const SizedBox(height: 6),
-          if (incoming && l.unread)
-            Container(
-                width: 10,
-                height: 10,
-                decoration:
-                    const BoxDecoration(color: kRed, shape: BoxShape.circle)),
-          if (!incoming)
-            Text(sentStatus(l),
-                style: ui(11,
-                    weight: FontWeight.w700,
-                    color: l.inFlight
-                        ? kRed
-                        : l.unread
-                            ? kMuted
-                            : const Color(0xFF22B45A))),
-        ],
+      // Mektubun içeriği listede görünmez; yalnızca durumu ve ne zaman geldiği
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Text(
+          '${incoming ? (l.unread ? txt.newSealedLetter : txt.openedLetter) : sentStatus(l)}'
+          ' · ${txt.ago(l.sentAt)}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: ui(12.5,
+              weight: FontWeight.w600,
+              color: incoming
+                  ? (l.unread ? kRed : kMuted)
+                  : l.inFlight
+                      ? kRed
+                      : l.unread
+                          ? kMuted
+                          : const Color(0xFF22B45A)),
+        ),
       ),
+      trailing: _openButton(filled: incoming && l.unread),
     );
   }
+
+  /// Okunmamış gelen mektupta dolu kırmızı, diğerlerinde çerçeveli "aç"
+  Widget _openButton({required bool filled}) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+        decoration: BoxDecoration(
+          color: filled ? kRed : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: filled ? kRed : kNavy.withValues(alpha: .2)),
+        ),
+        child: Text(txt.open,
+            style: ui(13,
+                weight: FontWeight.w700,
+                color: filled ? Colors.white : kNavy)),
+      );
 
   Widget _list(List<Letter> items, {required bool incoming}) =>
       ListView.separated(

@@ -160,12 +160,13 @@ class S {
   String acceptedYourRequest(String names) => _(
       '$names arkadaşlık isteğini kabul etti 🎉',
       '$names accepted your friend request 🎉');
-  String sentYouRequest(String n) =>
-      _('$n sana arkadaşlık isteği gönderdi', '$n sent you a friend request');
+  String get sentYouRequest =>
+      _('sana arkadaşlık isteği gönderdi', 'sent you a friend request');
   String get see => _('gör', 'view');
-  String sentYouPlane(String n) =>
-      _('$n sana bir uçak gönderdi ✈', '$n sent you a plane ✈');
+  String get sentYouPlane => _('sana bir uçak gönderdi', 'sent you a plane');
   String get open => _('aç', 'open');
+  String get newSealedLetter => _('yeni mektup · açılmadı', 'new letter · unopened');
+  String get openedLetter => _('okudun', 'opened');
 
   // ---------- arkadaşlar ----------
   String get friends => _('Arkadaşlar', 'Friends');
