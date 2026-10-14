@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'api.dart';
 import 'i18n.dart';
+import 'legal.dart';
+import 'legal_texts.dart';
 import 'models.dart';
 import 'widgets.dart';
 
@@ -27,12 +29,24 @@ class Store {
     _sub = iap.purchaseStream.listen(_onPurchases, onError: (_) {});
     try {
       available = await iap.isAvailable();
-      if (!available) return;
-      final r = await iap.queryProductDetails(kProductIds);
-      products.value = {for (final p in r.productDetails) p.id: p};
+      await loadProducts(kProductIds);
     } catch (_) {
       available = false;
     }
+  }
+
+  /// Paketlerin Google Play'deki fiyatlarını getir (admin panelindeki paketler)
+  Future<void> loadProducts(Set<String> ids) async {
+    if (kIsWeb || !available || ids.isEmpty) return;
+    final missing = ids.difference(products.value.keys.toSet());
+    if (missing.isEmpty) return;
+    try {
+      final r = await InAppPurchase.instance.queryProductDetails(missing);
+      products.value = {
+        ...products.value,
+        for (final p in r.productDetails) p.id: p
+      };
+    } catch (_) {}
   }
 
   Future<void> buy(ProductDetails p) => InAppPurchase.instance
@@ -106,21 +120,22 @@ class _StoreSheet extends StatefulWidget {
 }
 
 class _StoreSheetState extends State<_StoreSheet> {
-  bool consent = false;
   String? busy;
 
   @override
   void initState() {
     super.initState();
-    widget.api.refreshCredits().catchError((_) => widget.api.credits.value);
+    widget.api.refreshCredits().then(
+        (c) => widget.store.loadProducts(c.products.keys.toSet()),
+        onError: (_) {});
   }
 
+  /// Pakete dokununca Google Play'in kendi ödeme ekranı açılır;
+  /// sonuç satın alma akışından (Store._onPurchases) gelir
   Future<void> _buy(String id, ProductDetails? product, bool test) async {
-    if (!consent) return showToast(context, txt.purchaseConsentNeeded);
     setState(() => busy = id);
     try {
       if (product != null) {
-        // Sonuç satın alma akışından (Store._onPurchases) gelir
         await widget.store.buy(product);
       } else if (test) {
         final before = widget.api.credits.value.bonus;
@@ -138,37 +153,32 @@ class _StoreSheetState extends State<_StoreSheet> {
 
   Widget _status(Credits c) {
     final left = c.resetsAt?.difference(DateTime.now());
+    Widget line(IconData icon, String text,
+            {Color color = kNavy, bool strong = true}) =>
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 10),
+            Expanded(
+                child: Text(text,
+                    style: strong
+                        ? ui(13.5, weight: FontWeight.w700)
+                        : ui(12.5, color: kMuted))),
+          ]),
+        );
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
           color: kGround, borderRadius: BorderRadius.circular(16)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(c.dailyLeft > 0 ? Icons.mail_outline : Icons.schedule,
-              size: 18, color: kNavy),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-                c.dailyLeft > 0
-                    ? txt.dailyFreeLeft
-                    : txt.dailyUsed(left == null ? '' : _dur(left)),
-                style: ui(13.5, weight: FontWeight.w700)),
-          ),
-        ]),
-        const SizedBox(height: 6),
-        Row(children: [
-          const Icon(Icons.local_post_office_outlined, size: 18, color: kNavy),
-          const SizedBox(width: 8),
-          Text(txt.bonusCount(c.bonus),
-              style: ui(13.5, weight: FontWeight.w600)),
-        ]),
-        const SizedBox(height: 6),
-        Row(children: [
-          const Icon(Icons.reply, size: 18, color: kRed),
-          const SizedBox(width: 8),
-          Expanded(
-              child: Text(txt.replyFreeInfo, style: ui(12.5, color: kMuted))),
-        ]),
+      child: Column(children: [
+        line(
+            c.dailyLeft > 0 ? Icons.wb_sunny_outlined : Icons.schedule,
+            c.dailyLeft > 0
+                ? txt.dailyFreeLeft
+                : txt.dailyUsed(left == null ? '' : _dur(left))),
+        line(Icons.confirmation_number_outlined, txt.bonusCount(c.bonus)),
+        line(Icons.reply, txt.replyFreeInfo, color: kRed, strong: false),
       ]),
     );
   }
@@ -177,7 +187,7 @@ class _StoreSheetState extends State<_StoreSheet> {
   Widget build(BuildContext context) => SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
           child: ValueListenableBuilder<Credits>(
             valueListenable: widget.api.credits,
             builder: (context, c, _) => ValueListenableBuilder(
@@ -207,39 +217,38 @@ class _StoreSheetState extends State<_StoreSheet> {
                           color: widget.reason == null ? kNavy : kMuted)),
                   const SizedBox(height: 12),
                   _status(c),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(txt.buyMore,
+                        style: ui(13, weight: FontWeight.w800, color: kMuted)),
+                  ),
+                  const SizedBox(height: 6),
                   for (final e in ids.entries)
                     _pack(e.key, e.value, products[e.key], c.testPurchases,
                         canBuy),
-                  if (!canBuy)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(txt.storeUnavailable,
-                          textAlign: TextAlign.center,
-                          style: ui(12, color: kMuted)),
-                    ),
-                  if (canBuy)
-                    Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Checkbox(
-                              value: consent,
-                              activeColor: kNavy,
-                              visualDensity: VisualDensity.compact,
-                              onChanged: (v) =>
-                                  setState(() => consent = v ?? false)),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => setState(() => consent = !consent),
-                              child: Padding(
-                                padding: const EdgeInsets.only(top: 9),
-                                child: Text(txt.purchaseConsent,
-                                    style: ui(11.5,
-                                        color: const Color(0xFF34405A))),
-                              ),
-                            ),
-                          ),
-                        ]),
+                  const SizedBox(height: 6),
+                  // Google Play'deki gibi: ödeme bilgisi ve koşullar altta not olarak
+                  Text.rich(
+                    TextSpan(children: [
+                      TextSpan(
+                          text:
+                              canBuy ? txt.purchaseNote : txt.storeUnavailable),
+                      const TextSpan(text: ' '),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.baseline,
+                        baseline: TextBaseline.alphabetic,
+                        child: GestureDetector(
+                          onTap: () => showLegalDoc(context, LegalDoc.terms),
+                          child: Text(legalTitle(LegalDoc.terms),
+                              style: ui(11.5, weight: FontWeight.w700).copyWith(
+                                  decoration: TextDecoration.underline)),
+                        ),
+                      ),
+                    ]),
+                    textAlign: TextAlign.center,
+                    style: ui(11.5, color: kMuted),
+                  ),
                 ]);
               },
             ),
@@ -252,58 +261,55 @@ class _StoreSheetState extends State<_StoreSheet> {
     final n = count > 0 ? count : int.tryParse(id.split('_').last) ?? 0;
     final price = product?.price ?? (test ? txt.testFree : '—');
     final enabled = canBuy && (product != null || test) && busy == null;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFFE3E6EC))),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: enabled ? () => _buy(id, product, test) : null,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(children: [
-              Container(
-                width: 42,
-                height: 42,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                    color: kRed.withValues(alpha: .1),
-                    borderRadius: BorderRadius.circular(12)),
-                child: Text('$n',
-                    style: ui(17, weight: FontWeight.w800, color: kRed)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: Text(txt.packLabel(n),
-                      style: ui(15, weight: FontWeight.w700))),
-              busy == id
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: kNavy))
-                  : Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                          color: enabled ? kNavy : kNavy.withValues(alpha: .3),
-                          borderRadius: BorderRadius.circular(16)),
-                      child: Text(price,
-                          style: ui(13,
-                              weight: FontWeight.w700, color: Colors.white)),
-                    ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: enabled ? () => _buy(id, product, test) : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+        child: Row(children: [
+          Container(
+            width: 46,
+            height: 46,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: kRed.withValues(alpha: .1),
+                borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.confirmation_number_outlined,
+                color: kRed, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(txt.packLabel(n), style: ui(15, weight: FontWeight.w700)),
+              Text('toss-o', style: ui(12, color: kMuted)),
             ]),
           ),
-        ),
+          busy == id
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child:
+                      CircularProgressIndicator(strokeWidth: 2, color: kNavy))
+              : Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                      color: enabled
+                          ? const Color(0xFF01875F) // Google Play yeşili
+                          : kMuted.withValues(alpha: .35),
+                      borderRadius: BorderRadius.circular(18)),
+                  child: Text(price,
+                      style: ui(13.5,
+                          weight: FontWeight.w700, color: Colors.white)),
+                ),
+        ]),
       ),
     );
   }
 }
 
-/// Üst çubuktaki hak göstergesi: ✉ kalan toplam hak
+/// Üst çubuktaki hak göstergesi: alışveriş çantası + kalan toplam hak
 class CreditsChip extends StatelessWidget {
   final Api api;
   final VoidCallback onTap;
@@ -318,8 +324,8 @@ class CreditsChip extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: glass(21),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.mail_outline,
-                  size: 18, color: c.total > 0 ? kNavy : kRed),
+              Icon(Icons.shopping_bag_outlined,
+                  size: 19, color: c.total > 0 ? kNavy : kRed),
               const SizedBox(width: 5),
               Text('${c.total}',
                   style: ui(14,

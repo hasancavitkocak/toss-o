@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart' show LatLng;
 import 'api.dart';
 import 'i18n.dart';
+import 'location_picker.dart' show trFold;
 import 'models.dart';
 import 'person_sheet.dart';
 import 'widgets.dart';
@@ -42,6 +43,11 @@ class _FriendsSheetState extends State<_FriendsSheet>
 
   // arama
   final q = TextEditingController();
+
+  // Arkadaş listesi: içinde arama ve parça parça gösterme
+  static const _pageSize = 10;
+  final fq = TextEditingController();
+  int shown = _pageSize;
   List<SearchResult> results = [];
   bool searching = false;
   Timer? _debounce;
@@ -60,6 +66,7 @@ class _FriendsSheetState extends State<_FriendsSheet>
     _debounce?.cancel();
     tabs.dispose();
     q.dispose();
+    fq.dispose();
     super.dispose();
   }
 
@@ -226,21 +233,70 @@ class _FriendsSheetState extends State<_FriendsSheet>
         ],
       );
 
-  Widget _friendsTab() => ListView(
-        padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
-        children: [
-          if (friends.isEmpty) _empty(txt.noFriends),
-          for (final p in friends)
+  Widget _friendsTab() {
+    final term = trFold(fq.text.trim());
+    final list = term.isEmpty
+        ? friends
+        : friends
+            .where((p) =>
+                trFold(p.name).contains(term) ||
+                p.username.contains(term) ||
+                trFold(p.location).contains(term))
+            .toList();
+    final visible = list.take(shown).toList();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 24),
+      children: [
+        if (friends.isEmpty)
+          _empty(txt.noFriends)
+        else ...[
+          // Arkadaşlarında ara (isim, kullanıcı adı ya da il)
+          TextField(
+            controller: fq,
+            autocorrect: false,
+            onChanged: (_) => setState(() => shown = _pageSize),
+            decoration: InputDecoration(
+              hintText: txt.searchFriends,
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: fq.text.isEmpty
+                  ? null
+                  : IconButton(
+                      onPressed: () => setState(() {
+                            fq.clear();
+                            shown = _pageSize;
+                          }),
+                      icon: const Icon(Icons.close)),
+              isDense: true,
+              filled: true,
+              fillColor: kGround,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none),
+            ),
+          ),
+          const SizedBox(height: 6),
+          if (list.isEmpty) _empty(txt.nobodyFound),
+          for (final p in visible)
             _person(p,
                 trailing: const Icon(Icons.chevron_right, color: kMuted)),
-          if (friends.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Text(txt.tapPersonHint,
-                  textAlign: TextAlign.center, style: ui(11.5, color: kMuted)),
+          if (list.length > visible.length)
+            Center(
+              child: TextButton.icon(
+                onPressed: () => setState(() => shown += _pageSize),
+                icon: const Icon(Icons.expand_more, color: kNavy),
+                label: Text(txt.showMore(list.length - visible.length),
+                    style: ui(14, weight: FontWeight.w700)),
+              ),
             ),
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Text(txt.tapPersonHint,
+                textAlign: TextAlign.center, style: ui(11.5, color: kMuted)),
+          ),
         ],
-      );
+      ],
+    );
+  }
 
   Widget _searchTab() => Padding(
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),

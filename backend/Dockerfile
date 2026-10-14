@@ -5,6 +5,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY src ./src
 COPY data ./data
+COPY admin ./admin
 EXPOSE 3000
 USER node
 HEALTHCHECK --interval=10s --timeout=3s --retries=5 \

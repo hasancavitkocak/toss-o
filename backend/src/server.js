@@ -1,5 +1,5 @@
 import { buildApp } from './app.js';
-import { backfillLocations, createPool, migrate, waitForDb } from './db.js';
+import { backfillLocations, createPool, grantAdmins, migrate, waitForDb } from './db.js';
 import { seed } from './seed.js';
 import { seedGeo } from './geo.js';
 import { googlePlayFromEnv } from './play.js';
@@ -17,6 +17,9 @@ await migrate(pool);
 await seedGeo(pool, { log: console.log });
 await backfillLocations(pool);
 if (env.SEED !== 'false') await seed(pool, { log: console.log });
+// Admin paneline girebilecek hesaplar (virgülle): ADMIN_USERNAMES=hasan
+const admins = await grantAdmins(pool, env.ADMIN_USERNAMES);
+if (admins) console.log(`${admins} hesaba admin yetkisi verildi`);
 
 const app = buildApp({
   pool,

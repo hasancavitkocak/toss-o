@@ -1,3 +1,4 @@
+import { DEFAULT_PRODUCTS } from './credits.js';
 import pg from 'pg';
 
 export function createPool(connectionString, max = 10) {
@@ -142,12 +143,68 @@ alter table letters add column if not exists cost text not null default 'legacy'
 alter table letters add column if not exists deliver_at timestamptz not null default now();
 create index if not exists letters_deliver_idx on letters (recipient_id, deliver_at);
 
+-- Admin paneli: paketler, ayarlar, yetki, askıya alma, hak hareketleri, işlem kaydı
+create table if not exists products (
+  id text primary key,
+  credits integer not null check (credits > 0),
+  active boolean not null default true,
+  sort integer not null default 0,
+  created_at timestamptz not null default now()
+);
+create table if not exists app_settings (
+  key text primary key,
+  value jsonb not null
+);
+alter table users add column if not exists is_admin boolean not null default false;
+alter table users add column if not exists banned_at timestamptz;
+alter table users add column if not exists ban_reason text;
+alter table purchases add column if not exists revoked_at timestamptz;
+alter table purchases add column if not exists revoke_reason text;
+create table if not exists credit_grants (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  admin_id uuid references users(id) on delete set null,
+  amount integer not null,
+  reason text not null,
+  created_at timestamptz not null default now()
+);
+create table if not exists admin_log (
+  id bigserial primary key,
+  admin_id uuid references users(id) on delete set null,
+  action text not null,
+  target_user uuid,
+  details jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists admin_log_created_idx on admin_log (created_at desc);
+
 create index if not exists letters_recipient_idx on letters (recipient_id, sent_at desc);
 create index if not exists letters_sender_idx on letters (sender_id, sent_at desc);
 `;
 
 export async function migrate(pool) {
   await pool.query(SCHEMA);
+  // Varsayılan paketler ve ayarlar (yoksa); sonrası admin panelinden yönetilir
+  for (const [id, credits, sort] of DEFAULT_PRODUCTS) {
+    await pool.query(
+      'insert into products (id, credits, sort) values ($1, $2, $3) on conflict do nothing',
+      [id, credits, sort],
+    );
+  }
+  await pool.query(
+    `insert into app_settings (key, value) values ('daily_free', '1') on conflict do nothing`,
+  );
+}
+
+/** ADMIN_USERNAMES ortam değişkenindeki kullanıcılara admin yetkisi ver */
+export async function grantAdmins(pool, usernames) {
+  const list = (usernames ?? '').split(',').map((u) => u.trim().toLowerCase()).filter(Boolean);
+  if (!list.length) return 0;
+  const { rowCount } = await pool.query(
+    'update users set is_admin = true where username = any($1::text[]) and not is_admin',
+    [list],
+  );
+  return rowCount;
 }
 
 /** Eski kayıtlar (yalnızca şehir adı olan) aynı adlı il ile eşleştirilir */

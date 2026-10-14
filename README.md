@@ -172,3 +172,22 @@ dilinde gelir. Uygulama metinleri `throw_app/lib/i18n.dart`, API çevirileri
 5. `.env` içine `GOOGLE_PLAY_PACKAGE` ve `GOOGLE_PLAY_SERVICE_ACCOUNT` değerlerini yaz.
 
 Geliştirme sunucusunda (`npm run dev`) test satın alma açıktır; mağazada "test · ücretsiz" butonları görünür. Docker/yayında kapalıdır.
+
+## Admin paneli
+
+`/admin` adresinde (geliştirmede http://localhost:3000/admin, Docker'da http://localhost:8080/admin).
+Girebilecek hesaplar `ADMIN_USERNAMES` ortam değişkeniyle verilir (virgülle; geliştirmede `hasan`).
+Panelden başka kullanıcılar da admin yapılabilir.
+
+| Sayfa | Neler yapılır |
+|---|---|
+| Gösterge | Kullanıcı / aktif / mektup / yolda / satın alma / satılan ve bekleyen hak sayıları, son 14 gün grafiği |
+| Kullanıcılar | Arama ve filtre (satın alanlar, askıdakiler, adminler, botlar); ayrıntı sayfasında hak ekle/düş (gerekçe zorunlu), askıya al / kaldır, admin yap, hesabı sil (kullanıcı adı yazılarak onay) |
+| Satın almalar | Google Play ve test satın almaları, iade (verilen haklar bakiyeden düşer) |
+| Paketler | Hak sayısı, sıra, satışta / pasif, yeni paket (kimlik Play Console'dakiyle aynı olmalı) |
+| Ayarlar | Günlük ücretsiz mektup hakkı |
+| İşlem kaydı | Hangi admin ne zaman ne yaptı |
+
+- **Gizlilik:** Panel mektup **içeriklerini göstermez**; yalnızca kime/ne zaman/bedel bilgisi görünür. Bunun gerekçesi haberleşmenin gizliliği ve KVKK.
+- **Askıya alma:** Askıya alınan hesap giriş yapamaz. Açık oturumu da hemen kapanır; aramada ve rastgele eşleşmede görünmez.
+- **Güvenlik:** Admin yetkisi her istekte veritabanından kontrol edilir. Sayfa sıkı CSP ile sunulur, oturum yalnızca tarayıcı sekmesi açıkken saklanır.

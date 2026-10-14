@@ -40,6 +40,9 @@ const EN = {
   'Satın alma doğrulanamadı, birazdan tekrar dene.': "We couldn't verify the purchase, please try again shortly.",
   'Satın alma geçersiz.': 'Invalid purchase.',
   'Bu satın alma başka bir hesapta kullanılmış.': 'This purchase was already used on another account.',
+  'Hesabın askıya alındı.': 'Your account has been suspended.',
+  'Bu paket bulunamadı.': 'Package not found.',
+  'Bu işlem için yetkin yok.': "You don't have permission for this.",
   'Kayıt için Kullanım Koşulları ve Aydınlatma Metni onaylanmalı.':
     'You must accept the Terms of Use and the Privacy Notice to sign up.',
 };

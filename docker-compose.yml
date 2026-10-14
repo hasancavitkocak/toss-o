@@ -33,6 +33,8 @@ services:
       TRUST_PROXY: 172.16.0.0/12
       # Google Play satın alma doğrulaması (Play Console servis hesabı)
       GOOGLE_PLAY_PACKAGE: ${GOOGLE_PLAY_PACKAGE:-}
+      # Admin paneline girebilecek kullanıcı adları (virgülle)
+      ADMIN_USERNAMES: ${ADMIN_USERNAMES:-}
       GOOGLE_PLAY_SERVICE_ACCOUNT: ${GOOGLE_PLAY_SERVICE_ACCOUNT:-}
     depends_on:
       db:

@@ -198,6 +198,8 @@ class S {
       'Arkadaşının kullanıcı adını ya da ismini yaz.\nO onaylayınca arkadaş olursunuz.',
       "Type your friend's username or name.\nYou'll be friends once they accept.");
   String get nobodyFound => _('Kimse bulunamadı.', 'Nobody found.');
+  String get searchFriends => _('arkadaşlarında ara', 'search your friends');
+  String showMore(int n) => _('Daha fazla göster ($n)', 'Show more ($n)');
   String get yourFriend => _('arkadaşın ✓', 'friend ✓');
   String get requestSentShort => _('İstek gönderildi', 'Request sent');
   String get requestCancelled => _('İstek geri alındı', 'Request cancelled');
@@ -300,13 +302,11 @@ class S {
   String get replyFreeInfo => _('Sana gelen her mektuba 1 cevap ücretsiz.',
       'Replying once to each letter you receive is free.');
   String packLabel(int n) => _('$n mektup hakkı', '$n letters');
+  String get buyMore => _('EK HAK SATIN AL', 'BUY MORE LETTERS');
+  String get purchaseNote => _(
+      'Ödeme Google Play hesabın üzerinden alınır. Haklar hesabına anında tanımlanır; dijital içerik anında teslim edildiği için cayma hakkı bulunmaz (Mesafeli Sözleşmeler Yönetmeliği md. 15/1-ğ).',
+      'Payment is charged to your Google Play account. Letters are added immediately; as digital content delivered immediately, they are not subject to a right of withdrawal.');
   String get testFree => _('test · ücretsiz', 'test · free');
-  String get purchaseConsent => _(
-      'Satın aldığım hakların hesabıma anında tanımlanacağını ve dijital içerik anında ifa edildiği için cayma hakkımın bulunmadığını kabul ediyorum (Mesafeli Sözleşmeler Yönetmeliği md. 15/1-ğ).',
-      'I agree that the letters I buy are added to my account immediately and that, as digital content delivered immediately, they are not subject to a right of withdrawal.');
-  String get purchaseConsentNeeded => _(
-      'Satın almak için önce alttaki onay kutusunu işaretle.',
-      'Please tick the confirmation box first.');
   String get storeUnavailable => _(
       'Satın alma Google Play üzerinden yapılır; uygulama mağazada yayınlanınca açılacak.',
       'Purchases are made via Google Play and will open once the app is published.');

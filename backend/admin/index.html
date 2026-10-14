@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>toss-o yönetim</title>
+  <link rel="stylesheet" href="/admin/style.css">
+</head>
+<body>
+  <!-- Giriş -->
+  <section id="login" class="login" hidden>
+    <form id="login-form" class="login-card" autocomplete="on">
+      <img src="/admin/logo.png" alt="toss-o" class="login-logo">
+      <h1>Yönetim paneli</h1>
+      <label>Kullanıcı adı<input name="username" autocomplete="username" required></label>
+      <label>Şifre<input name="password" type="password" autocomplete="current-password" required></label>
+      <p class="error" id="login-error" hidden></p>
+      <button class="btn primary" type="submit">Giriş yap</button>
+    </form>
+  </section>
+
+  <!-- Panel -->
+  <div id="app" class="layout" hidden>
+    <aside class="side">
+      <img src="/admin/logo.png" alt="toss-o" class="side-logo">
+      <nav id="nav">
+        <a href="#/" data-route="">Gösterge</a>
+        <a href="#/users" data-route="users">Kullanıcılar</a>
+        <a href="#/purchases" data-route="purchases">Satın almalar</a>
+        <a href="#/products" data-route="products">Paketler</a>
+        <a href="#/settings" data-route="settings">Ayarlar</a>
+        <a href="#/log" data-route="log">İşlem kaydı</a>
+      </nav>
+      <div class="side-foot">
+        <span id="me"></span>
+        <button class="btn ghost small" id="logout" type="button">Çıkış</button>
+      </div>
+    </aside>
+    <main id="view" class="main"></main>
+  </div>
+
+  <!-- Onay / girdi penceresi -->
+  <dialog id="dialog">
+    <form method="dialog" id="dialog-form">
+      <h3 id="dialog-title"></h3>
+      <p id="dialog-text"></p>
+      <label id="dialog-label" hidden><span></span><input id="dialog-input"></label>
+      <div class="dialog-actions">
+        <button class="btn ghost" value="cancel" type="submit">Vazgeç</button>
+        <button class="btn primary" value="ok" type="submit" id="dialog-ok">Tamam</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/admin/app.js"></script>
+</body>
+</html>

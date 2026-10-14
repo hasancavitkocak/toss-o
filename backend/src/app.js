@@ -8,7 +8,8 @@ import { countryName, distanceKm, randomLocation, sortTr } from './geo.js';
 import { scheduleBotAccept, scheduleBotReply } from './bots.js';
 import { langOf, translate } from './i18n.js';
 import { LEGAL_VERSION } from './legal.js';
-import { PRODUCTS, chargeLetter, creditJson, creditState, deliveryMinutes as defaultDelivery } from './credits.js';
+import { activeProducts, chargeLetter, creditJson, creditState, deliveryMinutes as defaultDelivery } from './credits.js';
+import { adminRoutes } from './admin.js';
 
 /** Hizmet verilen tek ülke: kayıt ve il seçimi yalnızca Türkiye'den */
 export const SERVICE_COUNTRY = 'TR';
@@ -91,7 +92,8 @@ const settingsJson = (u) => ({
 
 // Rastgele eşleşme yalnızca aynı ülke içinde ($1 gönderen id, u aday):
 // kişisel veriler rastgele bir yabancıya, yurt dışına aktarılmaz
-const randomOkSql = `u.country is not distinct from (select country from users where id = $1)`;
+const randomOkSql = `u.country is not distinct from (select country from users where id = $1)
+  and u.banned_at is null`;
 
 /** Fotoğrafın türünü dosyanın ilk baytlarından bul (uzantıya güvenme) */
 function imageMime(b) {
@@ -148,6 +150,9 @@ export function buildApp({
       } catch {
         return fail(reply, 401, 'Oturumun geçersiz, lütfen tekrar giriş yap.');
       }
+      // Askıya alınmış hesap hiçbir işlem yapamaz
+      const u = await one('select banned_at from users where id = $1', [req.user.sub]);
+      if (u?.banned_at) return fail(reply, 403, 'Hesabın askıya alındı.');
     },
   };
   const me = (req) => req.user.sub;
@@ -168,7 +173,9 @@ export function buildApp({
     }
   };
   const credits = async (userId) =>
-    creditJson(await creditState(pool, userId), { testPurchases: allowTestPurchases });
+    creditJson(await creditState(pool, userId), await activeProducts(pool), {
+      testPurchases: allowTestPurchases,
+    });
   const token = (u) => app.jwt.sign({ sub: u.id });
 
   app.setErrorHandler((err, req, reply) => {
@@ -185,6 +192,8 @@ export function buildApp({
 
   // Rotalar eklentiler (rate-limit) yüklendikten sonra kaydedilir
   app.register(async (app) => {
+    adminRoutes(app, { pool, one, fail, tx, token, limited });
+
     app.get('/api/health', async () => {
       await pool.query('select 1');
       return { ok: true };
@@ -280,6 +289,7 @@ export function buildApp({
       if (!u || u.is_bot || !(await bcrypt.compare(req.body.password, u.password_hash))) {
         return fail(reply, 401, 'Kullanıcı adı ya da şifre hatalı.');
       }
+      if (u.banned_at) return fail(reply, 403, 'Hesabın askıya alındı.');
       return { token: token(u), user: publicUser(u), settings: settingsJson(u) };
     });
 
@@ -306,25 +316,29 @@ export function buildApp({
     app.get('/api/credits', auth, async (req) => credits(me(req)));
 
     /** Satın alınan hakları ekle; aynı satın alma iki kez sayılmaz */
-    const grantPurchase = async (userId, productId, platform, token, orderId) =>
+    const grantPurchase = async (userId, product, platform, purchaseToken, orderId) =>
       tx(async (c) => {
         const { rows } = await c.query(
           `insert into purchases (user_id, product_id, credits, platform, purchase_token, order_id)
            values ($1, $2, $3, $4, $5, $6) on conflict (purchase_token) do nothing returning user_id`,
-          [userId, productId, PRODUCTS[productId], platform, token, orderId],
+          [userId, product.id, product.credits, platform, purchaseToken, orderId],
         );
         if (rows.length) {
           await c.query('update users set bonus_credits = bonus_credits + $2 where id = $1', [
             userId,
-            PRODUCTS[productId],
+            product.credits,
           ]);
           return true;
         }
-        const prev = await c.query('select user_id from purchases where purchase_token = $1', [token]);
+        const prev = await c.query('select user_id from purchases where purchase_token = $1', [purchaseToken]);
         return prev.rows[0]?.user_id === userId;
       });
 
-    const productSchema = { type: 'string', enum: Object.keys(PRODUCTS) };
+    const productSchema = { type: 'string', minLength: 1, maxLength: 64 };
+    // Paketler admin panelinden yönetilir; satıştan kalkmış bir paketin eski
+    // satın alması yine geçerlidir (yalnızca test satın alma aktif ister)
+    const productOf = (id, { activeOnly = false } = {}) =>
+      one(`select id, credits from products where id = $1 ${activeOnly ? 'and active' : ''}`, [id]);
 
     // Google Play: uygulama satın alma anahtarını gönderir, sunucu Google'a doğrulatır
     app.post('/api/purchases/google', {
@@ -347,7 +361,9 @@ export function buildApp({
         return fail(reply, 502, 'Satın alma doğrulanamadı, birazdan tekrar dene.');
       }
       if (!v.ok) return fail(reply, 400, 'Satın alma geçersiz.');
-      const ok = await grantPurchase(me(req), productId, 'google', purchaseToken, v.orderId);
+      const product = await productOf(productId);
+      if (!product) return fail(reply, 400, 'Bu paket bulunamadı.');
+      const ok = await grantPurchase(me(req), product, 'google', purchaseToken, v.orderId);
       if (!ok) return fail(reply, 409, 'Bu satın alma başka bir hesapta kullanılmış.');
       return credits(me(req));
     });
@@ -358,7 +374,9 @@ export function buildApp({
       schema: { body: { type: 'object', required: ['productId'], properties: { productId: productSchema } } },
     }, async (req, reply) => {
       if (!allowTestPurchases) return fail(reply, 404, 'Satın alma şu an kullanılamıyor.');
-      await grantPurchase(me(req), req.body.productId, 'test', `test-${crypto.randomUUID()}`, null);
+      const product = await productOf(req.body.productId, { activeOnly: true });
+      if (!product) return fail(reply, 400, 'Bu paket bulunamadı.');
+      await grantPurchase(me(req), product, 'test', `test-${crypto.randomUUID()}`, null);
       return credits(me(req));
     });
 
@@ -601,7 +619,7 @@ export function buildApp({
       const { rows } = await pool.query(
         `select u.*, ${relationSql('$1', 'u')}
          from users u
-         where u.id <> $1 and (u.username ilike $2 or u.display_name ilike $2)
+         where u.id <> $1 and u.banned_at is null and (u.username ilike $2 or u.display_name ilike $2)
            and not ${blockedSql('$1', 'u.id')}
          order by u.display_name limit 15`,
         [me(req), like],

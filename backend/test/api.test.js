@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { PGlite } from '@electric-sql/pglite';
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
 import { buildApp } from '../src/app.js';
-import { createPool, migrate } from '../src/db.js';
+import { createPool, grantAdmins, migrate } from '../src/db.js';
 import { seed, TEST_PASSWORD } from '../src/seed.js';
 import { seedGeo, randomLocation, distanceKm } from '../src/geo.js';
 import { deliveryMinutes } from '../src/credits.js';
@@ -633,4 +633,96 @@ test('Google Play satın alma: doğrulanır, aynı satın alma iki kez sayılmaz
   });
   assert.equal(test.statusCode, 404);
   await off.close();
+});
+
+test('admin: yetkisiz erişim reddedilir, panel güvenlik başlıklarıyla sunulur', async () => {
+  const ayse = await login('ayse');
+  assert.equal((await call('GET', '/api/admin/stats', { token: ayse })).status, 403);
+  assert.equal((await call('GET', '/api/admin/stats')).status, 401);
+  const notAdmin = await call('POST', '/api/admin/login', { body: { username: 'ayse', password: TEST_PASSWORD } });
+  assert.equal(notAdmin.status, 403);
+
+  const page = await app.inject({ method: 'GET', url: '/admin' });
+  assert.equal(page.statusCode, 200);
+  assert.match(page.headers['content-security-policy'], /script-src 'self'/);
+  assert.equal(page.headers['x-frame-options'], 'DENY');
+  assert.equal((await app.inject({ method: 'GET', url: '/admin/app.js' })).statusCode, 200);
+});
+
+test('admin: haklar, askıya alma, ayarlar, paketler, iade ve işlem kaydı', async () => {
+  assert.equal(await grantAdmins(pool, 'hasan'), 1);
+  const adm = await call('POST', '/api/admin/login', { body: { username: 'hasan', password: TEST_PASSWORD } });
+  assert.equal(adm.status, 200);
+  const t = adm.body.token;
+  const hasanId = adm.body.user.id;
+
+  const stats = await call('GET', '/api/admin/stats', { token: t });
+  assert.ok(stats.body.users > 0);
+  assert.equal(stats.body.days.length, 14);
+
+  const u = await newUser('panel_u');
+  const found = await call('GET', '/api/admin/users?q=panel_u', { token: t });
+  assert.equal(found.body.users[0].username, 'panel_u');
+
+  // Hak ekle / düş: bakiye sıfırın altına inmez, gerekçe zorunlu
+  assert.equal((await call('POST', `/api/admin/users/${u.user.id}/credits`, { token: t, body: { amount: 10, reason: '' } })).status, 400);
+  assert.equal((await call('POST', `/api/admin/users/${u.user.id}/credits`, { token: t, body: { amount: 10, reason: 'hoş geldin hediyesi' } })).body.bonus, 10);
+  assert.equal((await call('POST', `/api/admin/users/${u.user.id}/credits`, { token: t, body: { amount: -100, reason: 'düzeltme' } })).body.bonus, 0);
+  const detail = (await call('GET', `/api/admin/users/${u.user.id}`, { token: t })).body;
+  assert.deepEqual(detail.grants.map((g) => g.amount), [-10, 10]);
+  assert.equal(detail.grants[0].admin, 'hasan');
+  // Panel mektup içeriği döndürmez
+  assert.equal(JSON.stringify(detail).includes('"body"'), false);
+
+  // Askıya al: giriş ve mevcut oturum kapanır, aramada çıkmaz
+  assert.equal((await call('POST', `/api/admin/users/${hasanId}/ban`, { token: t, body: { reason: 'kendim' } })).status, 400);
+  assert.equal((await call('POST', `/api/admin/users/${u.user.id}/ban`, { token: t, body: { reason: 'taciz şikâyeti' } })).status, 204);
+  assert.equal((await call('GET', '/api/me', { token: u.token })).status, 403);
+  const blocked = await call('POST', '/api/auth/login', { body: { username: 'panel_u', password: 'gizli123' } });
+  assert.equal(blocked.status, 403);
+  assert.match(blocked.body.error, /askıya/);
+  assert.equal((await call('GET', '/api/users/search?q=panel_u', { token: await login('ayse') })).body.length, 0);
+  assert.equal((await call('DELETE', `/api/admin/users/${u.user.id}/ban`, { token: t })).status, 204);
+  assert.equal((await call('GET', '/api/me', { token: u.token })).status, 200);
+
+  // Günlük ücretsiz hak: 2 yapılınca iki mektup ücretsiz
+  assert.equal((await call('PUT', '/api/admin/settings', { token: t, body: { dailyFree: 2 } })).body.dailyFree, 2);
+  const v = await newUser('panel_v');
+  await befriend(u, v);
+  assert.equal((await call('GET', '/api/credits', { token: u.token })).body.dailyLeft, 2);
+  for (let i = 0; i < 2; i++) {
+    const r = await call('POST', '/api/letters', { token: u.token, body: { to: v.user.id, body: `mektup ${i}` } });
+    assert.equal(r.body.cost, 'daily');
+  }
+  assert.equal((await call('POST', '/api/letters', { token: u.token, body: { to: v.user.id, body: 'üçüncü' } })).status, 402);
+  await call('PUT', '/api/admin/settings', { token: t, body: { dailyFree: 1 } });
+
+  // Paketler: yeni paket eklenir; pasif paket uygulamada görünmez ve test satın alınamaz
+  const add = await call('POST', '/api/admin/products', { token: t, body: { id: 'tosso_hak_100', credits: 100 } });
+  assert.equal(add.status, 201);
+  assert.equal((await call('POST', '/api/admin/products', { token: t, body: { id: 'tosso_hak_100', credits: 1 } })).status, 409);
+  assert.ok((await call('GET', '/api/credits', { token: u.token })).body.products.some((p) => p.id === 'tosso_hak_100'));
+  await call('PUT', '/api/admin/products/tosso_hak_100', { token: t, body: { active: false } });
+  assert.ok(!(await call('GET', '/api/credits', { token: u.token })).body.products.some((p) => p.id === 'tosso_hak_100'));
+  assert.equal((await call('POST', '/api/purchases/test', { token: u.token, body: { productId: 'tosso_hak_100' } })).status, 400);
+
+  // İade: haklar bakiyeden düşer, ikinci iade yapılamaz
+  await call('POST', '/api/purchases/test', { token: u.token, body: { productId: 'tosso_hak_15' } });
+  const list = (await call('GET', '/api/admin/purchases?platform=test', { token: t })).body.purchases;
+  const p = list.find((x) => x.username === 'panel_u');
+  const rev = await call('POST', `/api/admin/purchases/${p.id}/revoke`, { token: t, body: { reason: 'kullanıcı iade istedi' } });
+  assert.equal(rev.body.bonus, 0);
+  assert.equal((await call('POST', `/api/admin/purchases/${p.id}/revoke`, { token: t, body: { reason: 'tekrar' } })).status, 404);
+
+  // Admin yetkisi: kendi yetkisini kaldıramaz
+  assert.equal((await call('PUT', `/api/admin/users/${hasanId}/admin`, { token: t, body: { isAdmin: false } })).status, 400);
+
+  // Silme: kullanıcı adı yazılarak onaylanır
+  assert.equal((await call('DELETE', `/api/admin/users/${v.user.id}`, { token: t, body: { confirm: 'yanlis' } })).status, 400);
+  assert.equal((await call('DELETE', `/api/admin/users/${v.user.id}`, { token: t, body: { confirm: 'panel_v' } })).status, 204);
+
+  const log = (await call('GET', '/api/admin/log', { token: t })).body.entries.map((e) => e.action);
+  for (const a of ['credits', 'ban', 'unban', 'settings', 'product_add', 'product_edit', 'revoke_purchase', 'delete_user']) {
+    assert.ok(log.includes(a), `${a} kaydedilmeli`);
+  }
 });

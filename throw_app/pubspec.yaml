@@ -47,6 +47,10 @@ flutter:
 flutter_launcher_icons:
   image_path: assets/icon.png
   android: true
+  # Android 8+ uyarlanabilir ikon: simge telefonun maskesini dolduracak kadar büyük
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/icon_foreground.png
+  adaptive_icon_foreground_inset: 0
   ios: false
   min_sdk_android: 21
   web:
