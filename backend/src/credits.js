@@ -27,7 +27,11 @@ export function deliveryMinutes(km) {
 export async function getSettings(db) {
   const { rows } = await db.query('select key, value from app_settings');
   const s = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-  return { dailyFree: Number(s.daily_free ?? 1) };
+  return {
+    dailyFree: Number(s.daily_free ?? 1),
+    // Test için: açıkken mektuplar ve bot cevapları beklemeden ulaşır
+    instantDelivery: s.instant_delivery === true,
+  };
 }
 
 /** Satıştaki paketler, sıralı */

@@ -13,7 +13,7 @@ const day = (v) => new Date(v).toLocaleDateString('tr-TR', { day: '2-digit', mon
 const ACTIONS = {
   credits: 'Hak değişikliği', ban: 'Askıya alma', unban: 'Askı kaldırma', admin_on: 'Admin yapıldı',
   admin_off: 'Admin yetkisi alındı', delete_user: 'Hesap silindi', revoke_purchase: 'Satın alma iadesi',
-  product_add: 'Paket eklendi', product_edit: 'Paket düzenlendi', settings: 'Ayar değişti',
+  product_add: 'Paket eklendi', product_edit: 'Paket düzenlendi', settings: 'Ayar değişti', deliver_now: 'Mektuplar hemen ulaştırıldı',
 };
 const COSTS = { daily: 'Günlük ücretsiz', reply: 'Ücretsiz cevap', credit: 'Satın alınan hak', bot: 'Bot cevabı', legacy: 'Eski' };
 
@@ -450,7 +450,34 @@ async function settings() {
       </form>
       <p class="note">Herkes için geçerlidir ve hemen uygulanır; Türkiye saatiyle gece yarısı yenilenir.
         Gelen her mektuba 1 cevap her zaman ücretsizdir.</p>
+    </div>
+    <div class="panel">
+      <h2>Test</h2>
+      <div class="row">
+        <label><input id="instant-delivery" type="checkbox" ${s.instantDelivery ? 'checked' : ''}>
+          Anlık teslim (mektuplar uçmadan ulaşır, botlar birkaç saniyede cevap verir)</label>
+      </div>
+      <div class="row">
+        <button class="btn" id="deliver-now">Yoldaki mektupları şimdi ulaştır</button>
+      </div>
+      <p class="note">Yalnızca test içindir; yayında kapalı tutun. Anlık teslim açıldıktan sonra gönderilen
+        mektupları etkiler, öncekiler için düğmeyi kullanın.</p>
     </div>`;
+  $('#instant-delivery').addEventListener('change', async (e) => {
+    try {
+      const r = await api('PUT', '/settings', { instantDelivery: e.target.checked });
+      toast(`Anlık teslim ${r.instantDelivery ? 'açık' : 'kapalı'}`);
+    } catch (err) {
+      e.target.checked = !e.target.checked;
+      toast(err.message, true);
+    }
+  });
+  $('#deliver-now').addEventListener('click', async () => {
+    try {
+      const r = await api('POST', '/letters/deliver-now');
+      toast(`${r.delivered} mektup ulaştırıldı`);
+    } catch (err) { toast(err.message, true); }
+  });
   $('#settings-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     try {

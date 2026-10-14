@@ -8,7 +8,9 @@ import { countryName, distanceKm, randomLocation, sortTr } from './geo.js';
 import { scheduleBotAccept, scheduleBotReply } from './bots.js';
 import { langOf, translate } from './i18n.js';
 import { LEGAL_VERSION } from './legal.js';
-import { activeProducts, chargeLetter, creditJson, creditState, deliveryMinutes as defaultDelivery } from './credits.js';
+import {
+  activeProducts, chargeLetter, creditJson, creditState, deliveryMinutes as defaultDelivery, getSettings,
+} from './credits.js';
 import { adminRoutes } from './admin.js';
 
 /** Hizmet verilen tek ülke: kayıt ve il seçimi yalnızca Türkiye'den */
@@ -827,13 +829,16 @@ export function buildApp({
       }
 
       const km = distanceKm(sender, recipient);
+      // Admin panelindeki "anlık teslim" açıksa uçuş ve bot düşünme süresi atlanır
+      const { instantDelivery } = await getSettings(pool);
+      const flightMinutes = instantDelivery ? () => 0 : deliveryMinutes;
       const letter = await tx(async (c) => {
         const cost = await chargeLetter(c, sender.id, replyTo);
         if (!cost) return null;
         const { rows } = await c.query(
           `insert into letters (sender_id, recipient_id, body, is_random, reply_to, distance_km, cost, deliver_at)
            values ($1, $2, $3, $4, $5, $6, $7, now() + make_interval(mins => $8)) returning *`,
-          [sender.id, recipient.id, body, isRandom, replyTo, km, cost, deliveryMinutes(km)],
+          [sender.id, recipient.id, body, isRandom, replyTo, km, cost, flightMinutes(km)],
         );
         return rows[0];
       });
@@ -846,7 +851,8 @@ export function buildApp({
       }
       if (recipient.is_bot) {
         const p = scheduleBotReply({
-          pool, letter, bot: recipient, sender, thinkMs: botReplyMs, deliveryMinutes, log: req.log,
+          pool, letter, bot: recipient, sender, log: req.log,
+          thinkMs: instantDelivery ? botAcceptMs : botReplyMs, deliveryMinutes: flightMinutes,
         });
         if (p) onBotReply?.(p);
       }

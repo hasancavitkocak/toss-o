@@ -420,18 +420,35 @@ export function adminRoutes(app, { pool, one, fail, tx, token, limited }) {
     schema: {
       body: {
         type: 'object',
-        required: ['dailyFree'],
-        properties: { dailyFree: { type: 'integer', minimum: 0, maximum: 20 } },
+        minProperties: 1,
+        additionalProperties: false,
+        properties: {
+          dailyFree: { type: 'integer', minimum: 0, maximum: 20 },
+          instantDelivery: { type: 'boolean' },
+        },
       },
     },
   }, async (req) => {
-    await pool.query(
-      `insert into app_settings (key, value) values ('daily_free', $1::jsonb)
-       on conflict (key) do update set value = excluded.value`,
-      [JSON.stringify(req.body.dailyFree)],
-    );
+    const keys = { dailyFree: 'daily_free', instantDelivery: 'instant_delivery' };
+    for (const [field, key] of Object.entries(keys)) {
+      if (req.body[field] === undefined) continue;
+      await pool.query(
+        `insert into app_settings (key, value) values ($1, $2::jsonb)
+         on conflict (key) do update set value = excluded.value`,
+        [key, JSON.stringify(req.body[field])],
+      );
+    }
     await log(null, req, 'settings', null, req.body);
     return getSettings(pool);
+  });
+
+  // Test için: yolda olan tüm mektupları (bot cevapları dahil) hemen ulaştır
+  app.post('/api/admin/letters/deliver-now', admin, async (req) => {
+    const { rowCount } = await pool.query(
+      `update letters set sent_at = least(sent_at, now()), deliver_at = now() where deliver_at > now()`,
+    );
+    await log(null, req, 'deliver_now', null, { letters: rowCount });
+    return { delivered: rowCount };
   });
 
   // ---------- işlem kaydı ----------

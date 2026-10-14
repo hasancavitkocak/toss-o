@@ -597,6 +597,14 @@ test('mektup mesafeye göre gecikmeli ulaşır: varmadan görünmez, açılamaz'
   const inbox = (await req('GET', '/api/letters/inbox', b.token)).body;
   assert.equal(inbox[0].id, sent.body.id);
   assert.equal((await req('POST', `/api/letters/${sent.body.id}/open`, b.token)).status, 200);
+
+  // Admin "anlık teslim" açınca beklemeden ulaşır
+  await pool.query(`insert into app_settings (key, value) values ('instant_delivery', 'true')
+                    on conflict (key) do update set value = excluded.value`);
+  const fast = await req('POST', '/api/letters', a.token, { to: b.user.id, body: 'hemen gelsin' });
+  assert.ok(new Date(fast.body.deliverAt) <= new Date());
+  assert.equal((await req('GET', '/api/letters/inbox', b.token)).body[0].id, fast.body.id);
+  await pool.query("delete from app_settings where key = 'instant_delivery'");
   await slow.close();
 });
 
@@ -697,6 +705,18 @@ test('admin: haklar, askıya alma, ayarlar, paketler, iade ve işlem kaydı', as
   assert.equal((await call('POST', '/api/letters', { token: u.token, body: { to: v.user.id, body: 'üçüncü' } })).status, 402);
   await call('PUT', '/api/admin/settings', { token: t, body: { dailyFree: 1 } });
 
+  // Anlık teslim bayrağı ve yoldaki mektupları hemen ulaştırma
+  const inst = await call('PUT', '/api/admin/settings', { token: t, body: { instantDelivery: true } });
+  assert.deepEqual(inst.body, { dailyFree: 1, instantDelivery: true });
+  assert.equal((await call('PUT', '/api/admin/settings', { token: t, body: {} })).status, 400);
+  await call('PUT', '/api/admin/settings', { token: t, body: { instantDelivery: false } });
+  const { rows: [late] } = await pool.query(
+    `insert into letters (sender_id, recipient_id, body, distance_km, cost, deliver_at)
+     values ($1, $2, 'yolda', 0, 'credit', now() + interval '1 hour') returning id`, [u.user.id, v.user.id]);
+  assert.ok((await call('POST', '/api/admin/letters/deliver-now', { token: t })).body.delivered >= 1);
+  const { rows: [landed] } = await pool.query('select deliver_at <= now() as ok from letters where id = $1', [late.id]);
+  assert.ok(landed.ok);
+
   // Paketler: yeni paket eklenir; pasif paket uygulamada görünmez ve test satın alınamaz
   const add = await call('POST', '/api/admin/products', { token: t, body: { id: 'tosso_hak_100', credits: 100 } });
   assert.equal(add.status, 201);
@@ -722,7 +742,7 @@ test('admin: haklar, askıya alma, ayarlar, paketler, iade ve işlem kaydı', as
   assert.equal((await call('DELETE', `/api/admin/users/${v.user.id}`, { token: t, body: { confirm: 'panel_v' } })).status, 204);
 
   const log = (await call('GET', '/api/admin/log', { token: t })).body.entries.map((e) => e.action);
-  for (const a of ['credits', 'ban', 'unban', 'settings', 'product_add', 'product_edit', 'revoke_purchase', 'delete_user']) {
+  for (const a of ['credits', 'ban', 'unban', 'settings', 'product_add', 'product_edit', 'revoke_purchase', 'delete_user', 'deliver_now']) {
     assert.ok(log.includes(a), `${a} kaydedilmeli`);
   }
 });
