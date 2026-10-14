@@ -1,0 +1,22 @@
+# Gizli ayarlar (sunucuda .env.example'dan oluşturulur)
+.env
+
+# Bağımlılıklar ve yerel veriler
+**/node_modules/
+**/.devdata/
+
+# Derleme çıktıları ve önbellekler
+**/build/
+**/.dart_tool/
+**/.gradle/
+*.apk
+*.aab
+
+# Android imza anahtarları
+*.jks
+*.keystore
+**/key.properties
+
+# Kişisel medya / örnek videolar
+*.mp4
+*.mov

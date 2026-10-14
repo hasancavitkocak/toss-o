@@ -1,0 +1,44 @@
+name: toss-o
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tosso
+      POSTGRES_USER: tosso
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-tosso}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tosso -d tosso"]
+      interval: 3s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgres://tosso:${DB_PASSWORD:-tosso}@db:5432/tosso
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET .env dosyasında tanımlanmalı}
+      SEED: ${SEED:-true}
+      # web (nginx) docker ağından gelir; giriş sınırı gerçek istemci IP'sine uygulansın
+      TRUST_PROXY: 172.16.0.0/12
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

@@ -1,0 +1,7 @@
+**/node_modules
+**/.devdata
+throw_app/build
+throw_app/.dart_tool
+throw_app/android
+throw_app/windows
+throw_app/*.mp4
