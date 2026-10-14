@@ -77,18 +77,15 @@ function localizeCountries(value, lang, depth = 0) {
 /** Kendi hesabının özel ayarları (yalnızca sahibine döner) */
 const settingsJson = (u) => ({
   lang: u.lang,
-  abroadConsent: u.abroad_consent,
-  abroadConsentAt: u.abroad_consent_at,
   termsAcceptedAt: u.terms_accepted_at,
   noticeAckAt: u.notice_ack_at,
   legalVersion: u.legal_version,
   currentLegalVersion: LEGAL_VERSION,
 });
 
-// Rastgele eşleşme: aynı ülkeden ya da iki tarafın da yurt dışı aktarıma
-// açık rıza verdiği kullanıcılar ($1 gönderen id, u aday)
-const randomOkSql = `(u.country is not distinct from (select country from users where id = $1)
-  or ((select abroad_consent from users where id = $1) and u.abroad_consent))`;
+// Rastgele eşleşme yalnızca aynı ülke içinde ($1 gönderen id, u aday):
+// kişisel veriler rastgele bir yabancıya, yurt dışına aktarılmaz
+const randomOkSql = `u.country is not distinct from (select country from users where id = $1)`;
 
 /** Fotoğrafın türünü dosyanın ilk baytlarından bul (uzantıya güvenme) */
 function imageMime(b) {
@@ -205,19 +202,16 @@ export function buildApp({
             lang: { type: 'string', enum: ['tr', 'en'] },
             acceptTerms: { type: 'boolean' },
             acceptNotice: { type: 'boolean' },
-            consentAbroad: { type: 'boolean' },
           },
         },
       },
     }, async (req, reply) => {
       const { username, password, displayName } = req.body;
       if (!displayName.trim()) return fail(reply, 400, 'İsim boş olamaz.');
-      // KVKK: aydınlatma metninin okunduğu ve koşulların kabulü kayıt şartı;
-      // yurt dışı aktarım rızası isteğe bağlı (hizmet şartı yapılamaz)
+      // KVKK: aydınlatma metninin okunduğu ve koşulların kabulü kayıt şartı
       if (req.body.acceptTerms !== true || req.body.acceptNotice !== true) {
         return fail(reply, 400, 'Kayıt için Kullanım Koşulları ve Aydınlatma Metni onaylanmalı.');
       }
-      const abroad = req.body.consentAbroad === true;
       if (await one('select 1 from users where username = $1', [username])) {
         return fail(reply, 409, 'Bu kullanıcı adı alınmış.');
       }
@@ -227,14 +221,12 @@ export function buildApp({
       const u = await one(
         `insert into users (username, display_name, password_hash, city, lat, lng,
                             country, region_code, place, lang,
-                            terms_accepted_at, notice_ack_at, legal_version,
-                            abroad_consent, abroad_consent_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now(), now(), $11, $12,
-                 case when $12 then now() end)
+                            terms_accepted_at, notice_ack_at, legal_version)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now(), now(), $11)
          returning *`,
         [username, displayName.trim(), await bcrypt.hash(password, 10), loc.regionName,
           loc.lat, loc.lng, loc.country, loc.region, loc.place, req.body.lang ?? langOf(req),
-          LEGAL_VERSION, abroad],
+          LEGAL_VERSION],
       );
       return reply.code(201).send({ token: token(u), user: publicUser(u), settings: settingsJson(u) });
     });
@@ -293,7 +285,7 @@ export function buildApp({
       return publicUser(u);
     });
 
-    // İsim, dil ya da yurt dışı aktarım rızası (rıza her an geri alınabilir)
+    // İsim, dil ya da güncel yasal metinlerin onayı
     app.patch('/api/me', {
       ...auth,
       schema: {
@@ -303,27 +295,23 @@ export function buildApp({
           properties: {
             displayName: { type: 'string', minLength: 1, maxLength: 30 },
             lang: { type: 'string', enum: ['tr', 'en'] },
-            consentAbroad: { type: 'boolean' },
             acceptLegal: { type: 'boolean', const: true },
           },
         },
       },
     }, async (req, reply) => {
-      const { displayName, lang, consentAbroad, acceptLegal } = req.body;
+      const { displayName, lang, acceptLegal } = req.body;
       const name = displayName?.trim();
       if (displayName !== undefined && !name) return fail(reply, 400, 'İsim boş olamaz.');
       const u = await one(
         `update users set
            display_name = coalesce($2, display_name),
            lang = coalesce($3, lang),
-           abroad_consent = coalesce($4, abroad_consent),
-           abroad_consent_at = case when $4 is null then abroad_consent_at
-                                    when $4 then now() else null end,
-           terms_accepted_at = case when $5 then now() else terms_accepted_at end,
-           notice_ack_at = case when $5 then now() else notice_ack_at end,
-           legal_version = case when $5 then $6 else legal_version end
+           terms_accepted_at = case when $4 then now() else terms_accepted_at end,
+           notice_ack_at = case when $4 then now() else notice_ack_at end,
+           legal_version = case when $4 then $5 else legal_version end
          where id = $1 returning *`,
-        [me(req), name ?? null, lang ?? null, consentAbroad ?? null, acceptLegal === true, LEGAL_VERSION],
+        [me(req), name ?? null, lang ?? null, acceptLegal === true, LEGAL_VERSION],
       );
       if (!u) return fail(reply, 401, 'Oturumun geçersiz, lütfen tekrar giriş yap.');
       return { user: publicUser(u), settings: settingsJson(u) };

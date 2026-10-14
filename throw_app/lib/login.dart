@@ -20,8 +20,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final password = TextEditingController();
   final name = TextEditingController();
   bool register = false, busy = false;
-  // KVKK: aydınlatma + koşullar zorunlu, yurt dışı aktarım rızası isteğe bağlı
-  bool notice = false, terms = false, abroad = false;
+  // KVKK: aydınlatma metni ve kullanım koşulları onayı
+  bool notice = false, terms = false;
   String? error;
   // Türkçe kullanan çoğunlukla Türkiye'dedir; İngilizcede ülke boş başlar
   GeoOption? country =
@@ -74,8 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
               region: region!.code,
               lang: txt.code,
               acceptTerms: terms,
-              acceptNotice: notice,
-              consentAbroad: abroad)
+              acceptNotice: notice)
           : await widget.api.login(u, p);
       widget.onSession(s);
     } on ApiException catch (e) {
@@ -163,12 +162,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         onChanged: (v) => setState(() => terms = v),
                         label: txt.consentTerms,
                         doc: LegalDoc.terms),
-                    ConsentTile(
-                        value: abroad,
-                        onChanged: (v) => setState(() => abroad = v),
-                        label: txt.consentExplicit,
-                        doc: LegalDoc.consent,
-                        required: false),
                   ],
                   if (error != null) ...[
                     const SizedBox(height: 14),

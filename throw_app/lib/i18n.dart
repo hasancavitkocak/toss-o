@@ -113,9 +113,6 @@ class S {
       'Please confirm you have read the Privacy Notice to continue.');
   String get consentNotice => _('Aydınlatma Metni\'ni okudum ve anladım.',
       'I have read and understood the Privacy Notice.');
-  String get consentExplicit => _(
-      'Mektuplarımın yurt dışındaki kullanıcılara iletilmesine ve verilerimin bu amaçla işlenmesine açık rıza veriyorum.',
-      'I give explicit consent for my letters to be delivered to users abroad and for my data to be processed for this purpose.');
   String get consentTerms =>
       _('Kullanım Koşulları\'nı kabul ediyorum.', 'I accept the Terms of Use.');
   String get read => _('oku', 'read');
@@ -139,7 +136,7 @@ class S {
 
   // ---------- ana ekran ----------
   String get randomName => _('Rastgele', 'Random');
-  String get somewhere => _('dünyanın bir yeri', 'somewhere on earth');
+  String get somewhere => _('ülkenden biri', 'someone in your country');
   String get writeSomethingFirst =>
       _('önce kağıda bir şeyler yaz ✎', 'write something on the paper first ✎');
   String get pushHarder => _('biraz daha güçlü it! ↑', 'push a bit harder! ↑');
@@ -150,8 +147,8 @@ class S {
   String replyTo(String n) => _('${dative(n)} cevap', 'reply to $n');
   String writeReply(String n) =>
       _('${dative(n)} cevabını yaz...', 'write your reply to $n...');
-  String get writeRandom => _('dünyanın bir yerindeki birine yaz...',
-      'write to someone somewhere on earth...');
+  String get writeRandom => _('ülkendeki rastgele birine yaz...',
+      'write to someone random in your country...');
   String writeTo(String n) =>
       _('${dative(n)} bir şeyler yaz...', 'write something to $n...');
   String get tapToWrite => _('✎ dokun ve yaz', '✎ tap to write');
@@ -160,7 +157,8 @@ class S {
       _('rastgele birine uçuyor…', 'flying to someone random…');
   String flyingTo(String n) => _('${dative(n)} uçuyor…', 'flying to $n…');
   String flew(String km) => _('$km uçtu', 'flew $km');
-  String get somewhereOnEarth => _('dünyanın bir yerine', 'somewhere on earth');
+  String get somewhereOnEarth =>
+      _('ülkenin bir yerine', 'somewhere in your country');
   String left(String km) => _('$km kaldı', '$km to go');
   String get randomMatch => _('🌍 rastgele eşleşme', '🌍 random match');
   String get newLetter => _('✎  yeni mektup yaz', '✎  write a new letter');

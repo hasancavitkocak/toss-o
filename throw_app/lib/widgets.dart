@@ -1,6 +1,6 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'api.dart';
 import 'i18n.dart';
@@ -13,10 +13,13 @@ const kInk = Color(0xFF1F2E6E); // dolma kalem mürekkebi
 const kGround = Color(0xFFF4F5F7);
 const kMuted = Color(0xFF6B7280);
 
-// OpenFreeMap "liberty": anahtarsız vektör harita, 3D binalı
-const kMapStyle = 'https://tiles.openfreemap.org/styles/liberty';
+// Harita stili: varsayılan OpenFreeMap "liberty" (anahtarsız, 3D binalı).
+// Yayında kendi harita sunucumuz verilir: --dart-define=MAP_STYLE=https://...
+const kMapStyle = String.fromEnvironment('MAP_STYLE',
+    defaultValue: 'https://tiles.openfreemap.org/styles/liberty');
 
-TextStyle hand(double size, [double alpha = 1]) => GoogleFonts.caveat(
+TextStyle hand(double size, [double alpha = 1]) => TextStyle(
+    fontFamily: 'Caveat',
     fontSize: size,
     fontWeight: FontWeight.w500,
     color: kInk.withValues(alpha: alpha),
@@ -24,7 +27,8 @@ TextStyle hand(double size, [double alpha = 1]) => GoogleFonts.caveat(
 
 TextStyle ui(double size,
         {FontWeight weight = FontWeight.w500, Color color = kNavy}) =>
-    GoogleFonts.inter(fontSize: size, fontWeight: weight, color: color);
+    TextStyle(
+        fontFamily: 'Inter', fontSize: size, fontWeight: weight, color: color);
 
 BoxDecoration glass(double radius) => BoxDecoration(
       color: Colors.white.withValues(alpha: .9),
@@ -69,6 +73,11 @@ class Atmosphere extends StatelessWidget {
       );
 }
 
+/// Web'de "/map/..." gibi göreli adres, sitenin kendi adresiyle tamamlanır
+String mapStyleUrl() => kMapStyle.startsWith('/') && kIsWeb
+    ? '${Uri.base.origin}$kMapStyle'
+    : kMapStyle;
+
 class Map3D extends StatelessWidget {
   final CameraPosition camera;
   final void Function(MapLibreMapController) onCreated;
@@ -76,7 +85,7 @@ class Map3D extends StatelessWidget {
   @override
   Widget build(BuildContext context) => IgnorePointer(
         child: MapLibreMap(
-          styleString: kMapStyle,
+          styleString: mapStyleUrl(),
           initialCameraPosition: camera,
           onMapCreated: onCreated,
           compassEnabled: false,
@@ -203,22 +212,57 @@ class Avatar extends StatelessWidget {
         child: Icon(Icons.public, color: Colors.white, size: size * .52),
       );
     }
+    // Fotoğraf yoksa baş harf: dış servise (avatar üreticisi) istek gitmez
+    final initial = Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: _avatarColors(person.id),
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Text(
+          person.name.isEmpty
+              ? '?'
+              : person.name.characters.first.toUpperCase(),
+          style: ui(size * .42, weight: FontWeight.w800, color: Colors.white)),
+    );
+    if (person.photo == null) return initial;
     return ClipOval(
-      child: Container(
+      child: SizedBox(
         width: size,
         height: size,
-        color: const Color(0xFFE3E8F2),
         child: Image.network(
-          person.photo != null ? '${Api.root}${person.photo}' : person.avatar,
+          '${Api.root}${person.photo}',
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Center(
-            child: Text(person.name.isEmpty ? '?' : person.name[0],
-                style: ui(size * .4, weight: FontWeight.w700)),
-          ),
+          errorBuilder: (_, __, ___) => initial,
         ),
       ),
     );
   }
+}
+
+/// Kişiye özgü, kimlikten türetilen sabit renk çifti
+List<Color> _avatarColors(String id) {
+  const palette = [
+    [Color(0xFF2B4A85), Color(0xFF5B7FC7)],
+    [Color(0xFFE5262C), Color(0xFFFF7A59)],
+    [Color(0xFF138A72), Color(0xFF4CC9A6)],
+    [Color(0xFF7A4BC2), Color(0xFFB08AE8)],
+    [Color(0xFFD97706), Color(0xFFFBBF24)],
+    [Color(0xFF0E7490), Color(0xFF38BDF8)],
+    [Color(0xFFBE185D), Color(0xFFF472B6)],
+    [Color(0xFF4D7C0F), Color(0xFFA3E635)],
+  ];
+  var h = 0;
+  for (final c in id.codeUnits) {
+    h = (h * 31 + c) & 0x7fffffff;
+  }
+  return palette[h % palette.length];
 }
 
 /// Üstteki kişi seçici: ortadaki kişide elle çizilmiş halka

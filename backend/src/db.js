@@ -114,13 +114,14 @@ create table if not exists avatars (
 alter table users add column if not exists avatar_version integer;
 
 -- Arayüz dili (bot cevapları bu dilde gelir) ve KVKK kayıtları:
--- ne zaman hangi metni onayladı, yurt dışı aktarım için açık rızası var mı
+-- ne zaman hangi metni onayladı
 alter table users add column if not exists lang text not null default 'tr';
 alter table users add column if not exists terms_accepted_at timestamptz;
 alter table users add column if not exists notice_ack_at timestamptz;
 alter table users add column if not exists legal_version text;
-alter table users add column if not exists abroad_consent boolean not null default false;
-alter table users add column if not exists abroad_consent_at timestamptz;
+-- Yurt dışı rastgele eşleşme kaldırıldı: eşleşme yalnızca aynı ülke içinde
+alter table users drop column if exists abroad_consent;
+alter table users drop column if exists abroad_consent_at;
 
 create index if not exists letters_recipient_idx on letters (recipient_id, sent_at desc);
 create index if not exists letters_sender_idx on letters (sender_id, sent_at desc);
@@ -136,6 +137,4 @@ export async function backfillLocations(pool) {
     `update users u set country = r.country, region_code = r.code
      from regions r where u.country is null and r.name = u.city`,
   );
-  // Bot (deneme) hesapları dünyanın her yerindeki kullanıcılarla eşleşebilir
-  await pool.query('update users set abroad_consent = true where is_bot and not abroad_consent');
 }

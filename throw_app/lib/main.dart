@@ -1,5 +1,8 @@
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'home.dart';
@@ -8,7 +11,24 @@ import 'login.dart';
 import 'models.dart';
 import 'widgets.dart';
 
-void main() => runApp(const TossApp());
+void main() {
+  // Uygulamaya gömülü yazı tiplerinin lisansları (SIL Open Font License)
+  LicenseRegistry.addLicense(() async* {
+    for (final f in ['Inter', 'Caveat']) {
+      yield LicenseEntryWithLineBreaks(
+          [f], await rootBundle.loadString('assets/fonts/$f-OFL.txt'));
+    }
+  });
+  // Web'de harita kütüphanesi (MapLibre GL JS) CDN'den değil sitenin
+  // kendisinden yüklenir: ziyaretçinin IP adresi üçüncü tarafa gitmez
+  if (kIsWeb) {
+    MapLibreMap.webLibrarySource = MapLibreJsSource.urls(
+      scriptUrl: Uri.base.resolve('maplibre/maplibre-gl.mjs').toString(),
+      styleUrl: Uri.base.resolve('maplibre/maplibre-gl.css').toString(),
+    );
+  }
+  runApp(const TossApp());
+}
 
 class TossApp extends StatefulWidget {
   const TossApp({super.key});

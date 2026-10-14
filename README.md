@@ -140,10 +140,16 @@ dilinde gelir. Uygulama metinleri `throw_app/lib/i18n.dart`, API çevirileri
 
 ## KVKK
 
-- **Metinler:** `throw_app/lib/legal_texts.dart` dosyasında Aydınlatma Metni (KVKK md. 10), Yurt Dışına Aktarım Açık Rıza Metni (md. 9) ve Kullanım Koşulları var (TR + EN).
-  **Yayına almadan önce** `[ŞİRKET UNVANI]`, `[ADRES]`, `[KVKK E-POSTA ADRESİ]`, `[SUNUCU KONUMU]`, `[SÜRE]` gibi alanları doldurup metni bir hukukçuya kontrol ettirin.
-- **Kayıt:** Aydınlatma Metni ve Kullanım Koşulları onayı zorunlu. Yurt dışı aktarım rızası isteğe bağlı; açık rıza hizmet şartı yapılamaz. Onaylar tarih ve metin sürümüyle (`users.legal_version`) saklanır.
-- **Rastgele eşleşme:** Rıza vermeyen kullanıcının rastgele mektubu yalnızca kendi ülkesindeki kullanıcılara gider. Rıza veren de yalnızca rıza vermiş yabancılarla eşleşir.
-- **Metin değişirse:** `backend/src/legal.js` içindeki `LEGAL_VERSION` ile `legal_texts.dart` içindeki `kLegalVersion` birlikte artırılır. Uygulama açılışta kullanıcıdan yeniden onay ister.
-- **Haklar (md. 11):** Profil > KVKK ve yasal metinler ekranında yurt dışı rızası açılıp kapatılır, Profil > Hesabımı sil tüm verileri siler; veri kopyası gibi diğer talepler metindeki e-posta adresine yapılır.
-- **Toplanmayan veriler:** GPS konumu ve ses kaydı alınmaz; sesli yazma özelliği kaldırıldı, mikrofon izni yok.
+- **Metinler:** `throw_app/lib/legal_texts.dart` içinde Aydınlatma Metni (KVKK md. 10) ve Kullanım Koşulları var (TR + EN). Açık rızaya dayanan bir işleme yok.
+  **Yayına almadan önce** `[ŞİRKET UNVANI]`, `[ADRES]`, `[KVKK E-POSTA ADRESİ]`, `[BARINDIRMA SAĞLAYICISI]`, `[SÜRE]` gibi alanları doldurup metni bir hukukçuya kontrol ettirin.
+- **Kayıt:** Aydınlatma Metni'nin okunması ve Kullanım Koşulları'nın kabulü zorunlu. Onaylar tarih ve metin sürümüyle (`users.legal_version`) saklanır.
+- **Yurt dışı:** Rastgele eşleşme yalnızca aynı ülke içinde. Veriler rastgele bir yabancıya aktarılmaz.
+- **Dış servisler: yok.** Uygulama yalnızca kendi sunucumuza bağlanır.
+  - Yazı tipleri (Inter, Caveat; OFL), avatarlar ve web'deki harita kütüphanesi (MapLibre GL JS, BSD) pakete gömülü.
+  - Flutter web'in çizim motoru da CDN'siz (`--no-web-resources-cdn`) paketleniyor.
+  - Harita görselleri ve web'in emoji yazı tipleri, nginx'teki önbellekli vekilden (`/map/`, `/gfonts/`) gelir. Dışarıya yalnızca sunucu bağlanır; ziyaretçinin IP adresi OpenFreeMap'e ya da Google'a gitmez.
+  - Telefon uygulaması da yayın derlemesinde `MAP_STYLE=https://<alan-adı>/map/styles/liberty` ile aynı vekili kullanır.
+- **Kayıt (log) süresi:** Docker logları servis başına en fazla 5 × 10 MB tutulur.
+- **Metin değişirse:** `backend/src/legal.js` içindeki `LEGAL_VERSION` ile `legal_texts.dart` içindeki `kLegalVersion` birlikte artırılır. Uygulama açılışta yeniden onay ister.
+- **Haklar (md. 11):** Profil'den isim, il ve fotoğraf düzeltilir; Profil > Hesabımı sil tüm verileri siler. Diğer talepler metindeki e-posta adresine yapılır.
+- **Toplanmayan veriler:** GPS konumu ve ses kaydı alınmaz, mikrofon izni yok.

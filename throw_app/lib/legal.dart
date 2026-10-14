@@ -125,30 +125,6 @@ class _LegalSheet extends StatefulWidget {
 }
 
 class _LegalSheetState extends State<_LegalSheet> {
-  bool busy = false;
-
-  Future<void> _toggle(bool v) async {
-    setState(() => busy = true);
-    try {
-      await widget.api.updateMe(consentAbroad: v);
-      if (mounted) {
-        showToast(
-            context,
-            v
-                ? (txt.en
-                    ? 'Consent given: random letters can now go worldwide 🌍'
-                    : 'Rıza verildi: rastgele mektupların artık tüm dünyaya gidebilir 🌍')
-                : (txt.en
-                    ? 'Consent withdrawn: random letters stay in your country'
-                    : 'Rıza geri alındı: rastgele mektupların yalnızca kendi ülkene gider'));
-      }
-    } on ApiException catch (e) {
-      if (mounted) showToast(context, e.message);
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
-  }
-
   Widget _doc(LegalDoc d, IconData icon) => ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 6),
         leading: Icon(icon, color: kNavy),
@@ -159,7 +135,6 @@ class _LegalSheetState extends State<_LegalSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final st = widget.api.settings;
     return Column(children: [
       _handle(),
       Padding(
@@ -171,25 +146,7 @@ class _LegalSheetState extends State<_LegalSheet> {
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
           children: [
             _doc(LegalDoc.notice, Icons.privacy_tip_outlined),
-            _doc(LegalDoc.consent, Icons.public),
             _doc(LegalDoc.terms, Icons.description_outlined),
-            const Divider(height: 24),
-            SwitchListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 6),
-              activeTrackColor: kNavy,
-              value: st.abroadConsent,
-              onChanged: busy ? null : _toggle,
-              title: Text(
-                  txt.en
-                      ? 'Random letters can go abroad'
-                      : 'Rastgele mektuplar yurt dışına gidebilir',
-                  style: ui(15, weight: FontWeight.w600)),
-              subtitle: Text(
-                  txt.en
-                      ? 'Explicit consent under KVKK Art. 9. Without it, random letters only go to users in your country. You can change this any time.'
-                      : 'KVKK md. 9 kapsamında açık rıza. Kapalıyken rastgele mektuplar yalnızca kendi ülkendeki kullanıcılara gider. Dilediğin an değiştirebilirsin.',
-                  style: ui(12, color: kMuted)),
-            ),
           ],
         ),
       ),
@@ -223,12 +180,11 @@ class _Reconsent extends StatefulWidget {
 
 class _ReconsentState extends State<_Reconsent> {
   bool notice = false, terms = false, busy = false;
-  late bool abroad = widget.api.settings.abroadConsent;
 
   Future<void> _ok() async {
     setState(() => busy = true);
     try {
-      await widget.api.updateMe(acceptLegal: true, consentAbroad: abroad);
+      await widget.api.updateMe(acceptLegal: true);
       if (mounted) Navigator.pop(context);
     } on ApiException catch (e) {
       if (mounted) showToast(context, e.message);
@@ -269,12 +225,6 @@ class _ReconsentState extends State<_Reconsent> {
                 onChanged: (v) => setState(() => terms = v),
                 label: txt.consentTerms,
                 doc: LegalDoc.terms),
-            ConsentTile(
-                value: abroad,
-                onChanged: (v) => setState(() => abroad = v),
-                label: txt.consentExplicit,
-                doc: LegalDoc.consent,
-                required: false),
             const SizedBox(height: 14),
             PrimaryButton(
                 label: txt.en ? 'Confirm' : 'Onayla',

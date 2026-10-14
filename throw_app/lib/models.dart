@@ -6,7 +6,7 @@ class Person {
   final String id, username, name, city;
   final String? place, country, countryName;
 
-  /// Yüklenmiş profil fotoğrafının API'ye göre yolu; yoksa çizgi avatar
+  /// Yüklenmiş profil fotoğrafının API'ye göre yolu; yoksa baş harf
   final String? photo;
   final LatLng at;
   final bool random;
@@ -32,7 +32,7 @@ class Person {
       id: 'random',
       username: '',
       name: 'Rastgele',
-      city: 'dünyanın bir yeri',
+      city: 'ülkenden biri',
       at: LatLng(0, 0),
       random: true);
 
@@ -47,10 +47,6 @@ class Person {
         photo: j['photo'] as String?,
         at: LatLng((j['lat'] as num).toDouble(), (j['lng'] as num).toDouble()),
       );
-
-  String get avatar => 'https://api.dicebear.com/9.x/notionists/png'
-      '?seed=${Uri.encodeComponent(username)}&size=128'
-      '&backgroundColor=e3e8f2,fde2e1,fff1d6,dff3ea';
 
   @override
   bool operator ==(Object other) => other is Person && other.id == id;
@@ -112,16 +108,12 @@ class Stats {
       );
 }
 
-/// Kendi hesabının özel ayarları: dil ve KVKK onay / rıza kayıtları
+/// Kendi hesabının özel ayarları: dil ve KVKK onay kayıtları
 class Settings {
   final String lang;
-  final bool abroadConsent;
   final String? legalVersion, currentLegalVersion;
   const Settings(
-      {this.lang = 'tr',
-      this.abroadConsent = false,
-      this.legalVersion,
-      this.currentLegalVersion});
+      {this.lang = 'tr', this.legalVersion, this.currentLegalVersion});
 
   /// Yasal metinler güncellendiyse yeniden onay gerekir
   bool get needsLegal =>
@@ -129,7 +121,6 @@ class Settings {
 
   factory Settings.fromJson(Map<String, dynamic> j) => Settings(
         lang: j['lang'] as String? ?? 'tr',
-        abroadConsent: j['abroadConsent'] as bool? ?? false,
         legalVersion: j['legalVersion'] as String?,
         currentLegalVersion: j['currentLegalVersion'] as String?,
       );

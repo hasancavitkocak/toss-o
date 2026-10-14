@@ -86,8 +86,7 @@ class Api {
           required String region,
           required String lang,
           required bool acceptTerms,
-          required bool acceptNotice,
-          required bool consentAbroad}) async =>
+          required bool acceptNotice}) async =>
       _session(await _send('POST', '/auth/register', {
         'username': username,
         'password': password,
@@ -97,7 +96,6 @@ class Api {
         'lang': lang,
         'acceptTerms': acceptTerms,
         'acceptNotice': acceptNotice,
-        'consentAbroad': consentAbroad,
       }));
 
   void _settings(dynamic j) {
@@ -106,16 +104,12 @@ class Api {
     }
   }
 
-  /// İsim, dil, yurt dışı aktarım rızası ya da güncel yasal metin onayı
+  /// İsim, dil ya da güncel yasal metin onayı
   Future<Person> updateMe(
-      {String? displayName,
-      String? lang,
-      bool? consentAbroad,
-      bool acceptLegal = false}) async {
+      {String? displayName, String? lang, bool acceptLegal = false}) async {
     final j = await _send('PATCH', '/me', {
       if (displayName != null) 'displayName': displayName,
       if (lang != null) 'lang': lang,
-      if (consentAbroad != null) 'consentAbroad': consentAbroad,
       if (acceptLegal) 'acceptLegal': true,
     });
     _settings(j);

@@ -1,5 +1,12 @@
 name: toss-o
 
+# Sunucu kayıtları (IP adresi içerir) en fazla 5 x 10 MB tutulur, eskiler silinir
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
 services:
   db:
     image: postgres:16-alpine
@@ -14,6 +21,7 @@ services:
       interval: 3s
       retries: 20
     restart: unless-stopped
+    logging: *logging
 
   api:
     build: ./backend
@@ -29,16 +37,20 @@ services:
     ports:
       - "3000:3000"
     restart: unless-stopped
+    logging: *logging
 
   web:
     build:
       context: .
       dockerfile: web/Dockerfile
+      args:
+        MAP_STYLE: ${MAP_STYLE:-/map/styles/liberty}
     depends_on:
       - api
     ports:
       - "8080:80"
     restart: unless-stopped
+    logging: *logging
 
 volumes:
   pgdata:

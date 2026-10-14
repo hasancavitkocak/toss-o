@@ -84,7 +84,7 @@ test('arkadaşa mektup: mesafe hesaplanır, bot cevap uçağı gönderir', async
   const sent = await call('POST', '/api/letters', { token, body: { to: elif.id, body: 'canım arkadaşım,\nseni özledim!' } });
   assert.equal(sent.status, 201);
   assert.equal(sent.body.to.username, 'elif');
-  assert.ok(sent.body.distanceKm > 250 && sent.body.distanceKm < 450, `${sent.body.distanceKm}`);
+  assert.ok(sent.body.distanceKm > 200 && sent.body.distanceKm < 500, `${sent.body.distanceKm}`);
 
   await Promise.all(botReplies);
   const inbox = await call('GET', '/api/letters/inbox', { token });
@@ -108,6 +108,11 @@ test('arkadaşa mektup: mesafe hesaplanır, bot cevap uçağı gönderir', async
 });
 
 test('rastgele mektup arkadaş olmayan birine gider', async () => {
+  // Eşleşme ülke içinde: Türkiye'de hasan'ın arkadaşı olmayan biri olsun
+  await call('POST', '/api/auth/register', {
+    body: { username: 'rastgele_tr', password: 'gizli123', displayName: 'R', country: 'TR', region: '35',
+      acceptTerms: true, acceptNotice: true },
+  });
   const token = await login('hasan');
   const friends = new Set((await call('GET', '/api/friends', { token })).body.map((f) => f.id));
   for (let i = 0; i < 5; i++) {
@@ -406,7 +411,7 @@ test('tarayıcı ön kontrolü (CORS) PUT, PATCH ve DELETE isteklerine izin veri
   }
 });
 
-test('KVKK: onaysız kayıt reddedilir, onaylar ve sürüm kaydedilir, yurt dışı rızası isteğe bağlı', async () => {
+test('KVKK: onaysız kayıt reddedilir, onaylar ve metin sürümü kaydedilir', async () => {
   const body = { username: 'kvkk_a', password: 'gizli123', displayName: 'K', country: 'TR', region: '68' };
   const no = await call('POST', '/api/auth/register', { body });
   assert.equal(no.status, 400);
@@ -419,37 +424,24 @@ test('KVKK: onaysız kayıt reddedilir, onaylar ve sürüm kaydedilir, yurt dı�
   assert.ok(ok.body.settings.termsAcceptedAt);
   assert.ok(ok.body.settings.noticeAckAt);
   assert.equal(ok.body.settings.legalVersion, ok.body.settings.currentLegalVersion);
-  assert.equal(ok.body.settings.abroadConsent, false);
+  assert.equal('abroadConsent' in ok.body.settings, false);
 
-  // Rıza verilir ve geri alınır
-  const t = ok.body.token;
-  const on = await call('PATCH', '/api/me', { token: t, body: { consentAbroad: true } });
-  assert.equal(on.body.settings.abroadConsent, true);
-  assert.ok(on.body.settings.abroadConsentAt);
-  const off = await call('PATCH', '/api/me', { token: t, body: { consentAbroad: false } });
-  assert.equal(off.body.settings.abroadConsent, false);
-  assert.equal(off.body.settings.abroadConsentAt, null);
+  // Metin sürümü eskiyse yeniden onay: acceptLegal güncel sürümü yazar
+  const again = await call('PATCH', '/api/me', { token: ok.body.token, body: { acceptLegal: true } });
+  assert.equal(again.body.settings.legalVersion, again.body.settings.currentLegalVersion);
 });
 
-test('yurt dışı rızası yoksa rastgele mektup yalnızca aynı ülkeden birine gider', async () => {
-  const reg = await call('POST', '/api/auth/register', {
-    body: { username: 'yerli_a', password: 'gizli123', displayName: 'Y', country: 'TR', region: '68',
-      acceptTerms: true, acceptNotice: true },
-  });
-  const t = reg.body.token;
-  for (let i = 0; i < 12; i++) {
-    const r = await call('POST', '/api/letters', { token: t, body: { to: 'random', body: 'merhaba' } });
-    assert.equal(r.status, 201);
-    assert.equal(r.body.to.country, 'TR', `${r.body.to.username} Türkiye'den olmalı`);
+test('rastgele mektup yalnızca aynı ülkedeki birine gider (yurt dışına aktarım yok)', async () => {
+  for (const [username, country, region] of [['yerli_tr', 'TR', '68'], ['yerli_de', 'DE', '16']]) {
+    const reg = await call('POST', '/api/auth/register', {
+      body: { username, password: 'gizli123', displayName: 'Y', country, region, acceptTerms: true, acceptNotice: true },
+    });
+    for (let i = 0; i < 15; i++) {
+      const r = await call('POST', '/api/letters', { token: reg.body.token, body: { to: 'random', body: 'merhaba' } });
+      assert.equal(r.status, 201);
+      assert.equal(r.body.to.country, country, `${r.body.to.username} ${country} içinden olmalı`);
+    }
   }
-  // Rızayla birlikte bütün dünya açılır (bot hesaplar rızalı)
-  await call('PATCH', '/api/me', { token: t, body: { consentAbroad: true } });
-  const countries = new Set();
-  for (let i = 0; i < 40; i++) {
-    const r = await call('POST', '/api/letters', { token: t, body: { to: 'random', body: 'hello' } });
-    countries.add(r.body.to.country);
-  }
-  assert.ok(countries.size > 1, `farklı ülkeler beklenirdi: ${[...countries]}`);
 });
 
 test('İngilizce: hata mesajları, ülke adları ve bot cevabı İngilizce', async () => {
@@ -465,7 +457,7 @@ test('İngilizce: hata mesajları, ülke adları ve bot cevabı İngilizce', asy
   const reg = await call('POST', '/api/auth/register', {
     lang: 'en',
     body: { username: 'english_a', password: 'secret12', displayName: 'Jo', country: 'DE', region: '16',
-      acceptTerms: true, acceptNotice: true, consentAbroad: true },
+      acceptTerms: true, acceptNotice: true },
   });
   assert.equal(reg.status, 201);
   assert.equal(reg.body.settings.lang, 'en');

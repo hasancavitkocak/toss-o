@@ -56,9 +56,8 @@ export async function seed(pool, { log } = {}) {
       const r = await pool.query(
         `insert into users (username, display_name, password_hash, city, lat, lng,
                             country, region_code, place, is_bot, lang,
-                            terms_accepted_at, notice_ack_at, legal_version,
-                            abroad_consent, abroad_consent_at)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(), now(), $12, true, now())
+                            terms_accepted_at, notice_ack_at, legal_version)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(), now(), $12)
          returning *`,
         [username, name, hash, loc.regionName, loc.lat, loc.lng, country, region, loc.place, isBot,
           country === 'TR' ? 'tr' : 'en', LEGAL_VERSION],
