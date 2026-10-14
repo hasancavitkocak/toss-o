@@ -99,7 +99,10 @@ class _PickerSheetState extends State<_PickerSheet> {
       );
 }
 
-/// Ülke + il seçim alanları. Ülke değişince il sıfırlanır.
+/// Hizmet verilen tek ülke
+const kServiceCountry = GeoOption('TR', 'Türkiye');
+
+/// İl seçim alanı (ülke sabit: Türkiye)
 class LocationFields extends StatelessWidget {
   final Api api;
   final GeoOption? country, region;
@@ -144,26 +147,14 @@ class LocationFields extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = country;
+    final c = country ?? kServiceCountry;
     return Column(children: [
-      _field(txt.country, c?.name, Icons.public, () async {
-        final picked = await pickOption(context,
-            title: txt.pickCountry, items: api.countries());
-        if (picked != null && picked.code != c?.code) onChanged(picked, null);
+      _field(txt.regionLabel(true), region?.name, Icons.place_outlined,
+          () async {
+        final r = await pickOption(context,
+            title: txt.pickRegion(c.code, c.name), items: api.regions(c.code));
+        if (r != null) onChanged(c, r);
       }),
-      const SizedBox(height: 12),
-      _field(
-          txt.regionLabel(c?.code == 'TR'),
-          region?.name,
-          Icons.place_outlined,
-          c == null
-              ? null
-              : () async {
-                  final r = await pickOption(context,
-                      title: txt.pickRegion(c.code, c.name),
-                      items: api.regions(c.code));
-                  if (r != null) onChanged(c, r);
-                }),
       const SizedBox(height: 8),
       Row(children: [
         const Icon(Icons.lock_outline, size: 14, color: kMuted),

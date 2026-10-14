@@ -199,11 +199,9 @@ test('kayıt ol, kullanıcı ara, arkadaş ekle; iki gerçek kullanıcı mektupl
   assert.equal(back.body.replyTo, inbox.body[0].id);
 });
 
-test('ülke ve il listeleri: tüm dünya, Türkçe adlar, Türkiye en üstte', async () => {
+test('ülke ve il listeleri: hizmet yalnızca Türkiye, 81 il Türkçe adlarla', async () => {
   const countries = (await call('GET', '/api/geo/countries')).body;
-  assert.ok(countries.length > 200, `${countries.length}`);
-  assert.deepEqual(countries[0], { code: 'TR', name: 'Türkiye' });
-  assert.ok(countries.some((c) => c.code === 'DE' && c.name === 'Almanya'));
+  assert.deepEqual(countries, [{ code: 'TR', name: 'Türkiye' }]);
 
   const iller = (await call('GET', '/api/geo/countries/tr/regions')).body;
   assert.equal(iller.length, 81);
@@ -215,6 +213,7 @@ test('ülke ve il listeleri: tüm dünya, Türkçe adlar, Türkiye en üstte', a
   // Türkçe alfabetik sıra: Çankırı, Ç ile C'den sonra gelir
   assert.ok(names.indexOf('Çankırı') > names.indexOf('Bursa'));
 
+  assert.equal((await call('GET', '/api/geo/countries/DE/regions')).status, 404);
   assert.equal((await call('GET', '/api/geo/countries/XX/regions')).status, 404);
 });
 
@@ -233,11 +232,14 @@ test('rastgele konum: hep seçilen ilin içinde, her seferinde farklı nokta', a
 
 test('il değiştirince kullanıcı yeni ilde yeni bir noktaya taşınır', async () => {
   const token = await login('ayse');
-  const r = await call('PUT', '/api/me/location', { token, body: { country: 'de', region: '16' } });
+  const r = await call('PUT', '/api/me/location', { token, body: { region: '61' } });
   assert.equal(r.status, 200);
-  assert.equal(r.body.city, 'Berlin');
-  assert.equal(r.body.countryName, 'Almanya');
-  assert.ok(distanceKm({ lat: 52.52, lng: 13.405 }, r.body) < 40);
+  assert.equal(r.body.city, 'Trabzon');
+  assert.equal(r.body.countryName, 'Türkiye');
+  assert.ok(distanceKm({ lat: 41.0, lng: 39.72 }, r.body) < 120);
+  const abroad = await call('PUT', '/api/me/location', { token, body: { country: 'DE', region: '16' } });
+  assert.equal(abroad.status, 400);
+  assert.match(abroad.body.error, /yalnızca Türkiye/);
   const bad = await call('PUT', '/api/me/location', { token, body: { country: 'TR', region: '0' } });
   assert.equal(bad.status, 400);
 });
@@ -248,25 +250,25 @@ test('istekler: bot onaylar, karşılıklı istek kabul sayılır, reddet ve ger
 
   // Tohum verisi: Lucía hasan'a istek atmış
   const incoming = (await call('GET', '/api/friends/requests', { token: hasan })).body.incoming;
-  assert.deepEqual(incoming.map((r) => r.user.username), ['lucia']);
+  assert.deepEqual(incoming.map((r) => r.user.username), ['defne']);
 
   // Bota istek: birkaç saniye içinde kendisi onaylar
   botReplies.length = 0;
-  const r = await call('POST', '/api/friends/requests', { token: hasan, body: { username: 'yuki' } });
+  const r = await call('POST', '/api/friends/requests', { token: hasan, body: { username: 'emre' } });
   assert.equal(r.body.status, 'pending');
   await Promise.all(botReplies);
-  assert.ok((await call('GET', '/api/friends', { token: hasan })).body.some((f) => f.username === 'yuki'));
+  assert.ok((await call('GET', '/api/friends', { token: hasan })).body.some((f) => f.username === 'emre'));
 
-  // Karşı taraf zaten istek atmışsa yeni istek kabul sayılır (mateo -> ayse)
-  const mateo = await call('POST', '/api/friends/requests', { token: ayse, body: { username: 'mateo' } });
-  assert.equal(mateo.body.status, 'accepted');
-  assert.ok((await call('GET', '/api/friends', { token: ayse })).body.some((f) => f.username === 'mateo'));
+  // Karşı taraf zaten istek atmışsa yeni istek kabul sayılır (kerem -> ayse)
+  const kerem = await call('POST', '/api/friends/requests', { token: ayse, body: { username: 'kerem' } });
+  assert.equal(kerem.body.status, 'accepted');
+  assert.ok((await call('GET', '/api/friends', { token: ayse })).body.some((f) => f.username === 'kerem'));
 
   // Reddet: arkadaşlık kurulmaz, liste boşalır
-  const lucia = incoming[0];
-  assert.equal((await call('POST', `/api/friends/requests/${lucia.id}/decline`, { token: hasan })).status, 204);
-  assert.equal((await call('POST', `/api/friends/requests/${lucia.id}/accept`, { token: hasan })).status, 404);
-  assert.ok(!(await call('GET', '/api/friends', { token: hasan })).body.some((f) => f.username === 'lucia'));
+  const defne = incoming[0];
+  assert.equal((await call('POST', `/api/friends/requests/${defne.id}/decline`, { token: hasan })).status, 204);
+  assert.equal((await call('POST', `/api/friends/requests/${defne.id}/accept`, { token: hasan })).status, 404);
+  assert.ok(!(await call('GET', '/api/friends', { token: hasan })).body.some((f) => f.username === 'defne'));
   assert.equal((await call('GET', '/api/friends/requests', { token: hasan })).body.incoming.length, 0);
 
   // Başkasının isteğini kabul edemezsin; kendi isteğini geri alabilirsin
@@ -431,16 +433,22 @@ test('KVKK: onaysız kayıt reddedilir, onaylar ve metin sürümü kaydedilir', 
   assert.equal(again.body.settings.legalVersion, again.body.settings.currentLegalVersion);
 });
 
-test('rastgele mektup yalnızca aynı ülkedeki birine gider (yurt dışına aktarım yok)', async () => {
-  for (const [username, country, region] of [['yerli_tr', 'TR', '68'], ['yerli_de', 'DE', '16']]) {
-    const reg = await call('POST', '/api/auth/register', {
-      body: { username, password: 'gizli123', displayName: 'Y', country, region, acceptTerms: true, acceptNotice: true },
-    });
-    for (let i = 0; i < 15; i++) {
-      const r = await call('POST', '/api/letters', { token: reg.body.token, body: { to: 'random', body: 'merhaba' } });
-      assert.equal(r.status, 201);
-      assert.equal(r.body.to.country, country, `${r.body.to.username} ${country} içinden olmalı`);
-    }
+test('hizmet yalnızca Türkiye: yurt dışından kayıt reddedilir, rastgele mektup Türkiye içinde kalır', async () => {
+  const de = await call('POST', '/api/auth/register', {
+    body: { username: 'yerli_de', password: 'gizli123', displayName: 'Y', country: 'DE', region: '16',
+      acceptTerms: true, acceptNotice: true },
+  });
+  assert.equal(de.status, 400);
+  // Ülke gönderilmezse Türkiye sayılır
+  const reg = await call('POST', '/api/auth/register', {
+    body: { username: 'yerli_tr', password: 'gizli123', displayName: 'Y', region: '68', acceptTerms: true, acceptNotice: true },
+  });
+  assert.equal(reg.status, 201);
+  assert.equal(reg.body.user.country, 'TR');
+  for (let i = 0; i < 15; i++) {
+    const r = await call('POST', '/api/letters', { token: reg.body.token, body: { to: 'random', body: 'merhaba' } });
+    assert.equal(r.status, 201);
+    assert.equal(r.body.to.country, 'TR', `${r.body.to.username} Türkiye'den olmalı`);
   }
 });
 
@@ -451,34 +459,30 @@ test('İngilizce: hata mesajları, ülke adları ve bot cevabı İngilizce', asy
   assert.equal(val.body.error, 'Some information is missing or invalid.');
 
   const countries = (await call('GET', '/api/geo/countries', { lang: 'en' })).body;
-  assert.ok(countries.some((c) => c.code === 'DE' && c.name === 'Germany'));
-  assert.equal(countries[0].name, 'Afghanistan');
+  assert.deepEqual(countries.map((c) => c.code), ['TR']);
 
   const reg = await call('POST', '/api/auth/register', {
     lang: 'en',
-    body: { username: 'english_a', password: 'secret12', displayName: 'Jo', country: 'DE', region: '16',
+    body: { username: 'english_a', password: 'secret12', displayName: 'Jo', region: '68',
       acceptTerms: true, acceptNotice: true },
   });
   assert.equal(reg.status, 201);
   assert.equal(reg.body.settings.lang, 'en');
-  assert.equal(reg.body.user.countryName, 'Germany');
-  const tr = await call('GET', '/api/me', { token: reg.body.token });
-  assert.equal(tr.body.user.countryName, 'Almanya');
 
   // Bot, İngilizce kullanıcıya İngilizce cevap verir
   const t = reg.body.token;
-  const r = await call('POST', '/api/friends/requests', { token: t, body: { username: 'noah' } });
+  const r = await call('POST', '/api/friends/requests', { token: t, body: { username: 'burak' } });
   botReplies.length = 0;
   await Promise.all([...botReplies]);
   await new Promise((res) => setTimeout(res, 60));
-  const noah = (await call('GET', '/api/friends', { token: t })).body.find((f) => f.username === 'noah');
-  assert.ok(noah, `noah isteği kabul etmeli (${r.body.status})`);
+  const noah = (await call('GET', '/api/friends', { token: t })).body.find((f) => f.username === 'burak');
+  assert.ok(noah, `burak isteği kabul etmeli (${r.body.status})`);
   botReplies.length = 0;
-  const sent = await call('POST', '/api/letters', { token: t, body: { to: noah.id, body: 'hi noah' } });
+  const sent = await call('POST', '/api/letters', { token: t, body: { to: noah.id, body: 'hi burak' } });
   assert.equal(sent.status, 201);
   await Promise.all(botReplies);
   const reply = (await call('GET', '/api/letters/inbox', { token: t })).body.find((l) => l.replyTo === sent.body.id);
-  assert.match(reply.body, /\nlove,\nnoah\.$/);
+  assert.match(reply.body, /\nlove,\nburak\.$/);
 
   // Dil sonradan değiştirilebilir
   const sw = await call('PATCH', '/api/me', { token: t, body: { lang: 'tr' } });

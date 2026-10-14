@@ -5,14 +5,9 @@ import 'tr.dart';
 
 enum Lang { tr, en }
 
-/// Seçili dil; değişince uygulama yeniden çizilir
+/// Uygulama dili. toss-o şu an yalnızca Türkiye'de ve Türkçe; İngilizce
+/// metinler ileride açılabilsin diye her metnin yanında duruyor.
 final language = ValueNotifier<Lang>(Lang.tr);
-
-/// Cihaz dili Türkçe ise Türkçe, değilse İngilizce
-Lang deviceLang() =>
-    WidgetsBinding.instance.platformDispatcher.locale.languageCode == 'tr'
-        ? Lang.tr
-        : Lang.en;
 
 S get txt => language.value == Lang.en ? const S(true) : const S(false);
 
@@ -136,7 +131,7 @@ class S {
 
   // ---------- ana ekran ----------
   String get randomName => _('Rastgele', 'Random');
-  String get somewhere => _('ülkenden biri', 'someone in your country');
+  String get somewhere => _("Türkiye'den biri", 'someone in Türkiye');
   String get writeSomethingFirst =>
       _('önce kağıda bir şeyler yaz ✎', 'write something on the paper first ✎');
   String get pushHarder => _('biraz daha güçlü it! ↑', 'push a bit harder! ↑');
@@ -147,8 +142,8 @@ class S {
   String replyTo(String n) => _('${dative(n)} cevap', 'reply to $n');
   String writeReply(String n) =>
       _('${dative(n)} cevabını yaz...', 'write your reply to $n...');
-  String get writeRandom => _('ülkendeki rastgele birine yaz...',
-      'write to someone random in your country...');
+  String get writeRandom => _("Türkiye'de rastgele birine yaz...",
+      'write to someone random in Türkiye...');
   String writeTo(String n) =>
       _('${dative(n)} bir şeyler yaz...', 'write something to $n...');
   String get tapToWrite => _('✎ dokun ve yaz', '✎ tap to write');
@@ -158,7 +153,7 @@ class S {
   String flyingTo(String n) => _('${dative(n)} uçuyor…', 'flying to $n…');
   String flew(String km) => _('$km uçtu', 'flew $km');
   String get somewhereOnEarth =>
-      _('ülkenin bir yerine', 'somewhere in your country');
+      _("Türkiye'nin bir yerine", 'somewhere in Türkiye');
   String left(String km) => _('$km kaldı', '$km to go');
   String get randomMatch => _('🌍 rastgele eşleşme', '🌍 random match');
   String get newLetter => _('✎  yeni mektup yaz', '✎  write a new letter');

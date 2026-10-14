@@ -6,6 +6,8 @@
 
 Kaynak: https://download.geonames.org/export/dump/ (CC BY 4.0)
 
+Yalnızca hizmet verilen ülke (COUNTRIES) tutulur.
+
 Kullanım:  python scripts/build_geo.py [indirilen-dosyaların-klasörü]
 """
 
@@ -19,6 +21,9 @@ import zipfile
 
 BASE = "https://download.geonames.org/export/dump/"
 OUT = os.path.join(os.path.dirname(__file__), "..", "data", "geo.json.gz")
+
+# toss-o yalnızca Türkiye'de hizmet verir
+COUNTRIES = {"TR"}
 
 # GeoNames'te İngilizce/eksik yazılan il adları
 TR_FIX = {"Istanbul": "İstanbul", "Canakkale": "Çanakkale", "Hakkâri": "Hakkari"}
@@ -70,6 +75,7 @@ def main():
             regions.setdefault((country, region), None)
         places.append([country, region, r[1], round(float(r[4]), 5), round(float(r[5]), 5), pop])
 
+    places = [p for p in places if p[0] in COUNTRIES]
     used = {(p[0], p[1]) for p in places}
     out = {
         "regions": sorted([c, r, n] for (c, r), n in regions.items() if (c, r) in used),

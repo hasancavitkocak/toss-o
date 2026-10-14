@@ -295,9 +295,7 @@ class _ProfileSheetState extends State<_ProfileSheet> {
               const Icon(Icons.place_outlined, size: 15, color: kRed),
               const SizedBox(width: 4),
               Flexible(
-                child: Text(
-                    [me.location, if (me.countryName != null) me.countryName]
-                        .join(' · '),
+                child: Text(me.location,
                     overflow: TextOverflow.ellipsis,
                     style: ui(13, weight: FontWeight.w600)),
               ),
@@ -321,18 +319,6 @@ class _ProfileSheetState extends State<_ProfileSheet> {
                 () => _subSheet(context, _BlocksSheet(api: api))),
             _tile(Icons.privacy_tip_outlined, txt.legal,
                 () => showLegalSheet(context, api)),
-            ListTile(
-              dense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 6),
-              leading: const Icon(Icons.translate, color: kNavy, size: 22),
-              title: Text(txt.languageLabel,
-                  style: ui(15, weight: FontWeight.w600)),
-              trailing: LangSwitch(onChanged: (l) {
-                setState(() {});
-                // Bot cevapları ve sunucu mesajları da bu dilde gelsin
-                api.updateMe(lang: l.name).catchError((_) => me);
-              }),
-            ),
             _tile(Icons.logout, txt.logout, () {
               Navigator.pop(context);
               widget.onLogout();

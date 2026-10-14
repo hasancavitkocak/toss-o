@@ -8,6 +8,9 @@ import { scheduleBotAccept, scheduleBotReply } from './bots.js';
 import { langOf, translate } from './i18n.js';
 import { LEGAL_VERSION } from './legal.js';
 
+/** Hizmet verilen tek ülke: kayıt ve il seçimi yalnızca Türkiye'den */
+export const SERVICE_COUNTRY = 'TR';
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const publicUser = (u) => ({
@@ -160,23 +163,16 @@ export function buildApp({
 
     // ---------- ülke / il listeleri ----------
 
-    app.get('/api/geo/countries', async (req) => {
-      const lang = langOf(req);
-      const { rows } = await pool.query('select code, name from countries');
-      if (lang !== 'tr') {
-        for (const r of rows) r.name = countryName(r.code, lang);
-        return sortTr(rows, 'name', lang);
-      }
-      const list = sortTr(rows);
-      // Türkiye en üstte
-      return [...list.filter((c) => c.code === 'TR'), ...list.filter((c) => c.code !== 'TR')];
-    });
+    // Hizmet yalnızca Türkiye'de: ülke listesi tek ülke, iller yalnızca Türkiye'nin
+    app.get('/api/geo/countries', async (req) => [
+      { code: SERVICE_COUNTRY, name: countryName(SERVICE_COUNTRY, langOf(req)) },
+    ]);
 
     app.get('/api/geo/countries/:code/regions', async (req, reply) => {
-      const { rows } = await pool.query(
-        'select code, name from regions where country = $1',
-        [req.params.code.toUpperCase()],
-      );
+      const code = req.params.code.toUpperCase();
+      const { rows } = code === SERVICE_COUNTRY
+        ? await pool.query('select code, name from regions where country = $1', [code])
+        : { rows: [] };
       if (!rows.length) return fail(reply, 404, 'Bu ülke bulunamadı.');
       return sortTr(rows);
     });
@@ -186,6 +182,12 @@ export function buildApp({
       region: { type: 'string', minLength: 1, maxLength: 20 },
     };
 
+    /** Seçilen ülke hizmet verilen ülke mi (gönderilmezse Türkiye sayılır) */
+    const serviceCountry = (body) => {
+      const c = (body.country ?? SERVICE_COUNTRY).toUpperCase();
+      return c === SERVICE_COUNTRY ? c : null;
+    };
+
     // ---------- oturum ----------
 
     app.post('/api/auth/register', {
@@ -193,7 +195,7 @@ export function buildApp({
       schema: {
         body: {
           type: 'object',
-          required: ['username', 'password', 'displayName', 'country', 'region'],
+          required: ['username', 'password', 'displayName', 'region'],
           properties: {
             username: { type: 'string', pattern: '^[a-z0-9_.]{3,20}$' },
             password: { type: 'string', minLength: 6, maxLength: 72 },
@@ -215,8 +217,10 @@ export function buildApp({
       if (await one('select 1 from users where username = $1', [username])) {
         return fail(reply, 409, 'Bu kullanıcı adı alınmış.');
       }
+      const country = serviceCountry(req.body);
+      if (!country) return fail(reply, 400, 'toss-o şu an yalnızca Türkiye\'de kullanılabilir.');
       // Gerçek konum istenmez: seçilen ilde rastgele bir noktaya yerleştirilir
-      const loc = await randomLocation(pool, req.body.country.toUpperCase(), req.body.region);
+      const loc = await randomLocation(pool, country, req.body.region);
       if (!loc) return fail(reply, 400, 'Bu il / bölge bulunamadı.');
       const u = await one(
         `insert into users (username, display_name, password_hash, city, lat, lng,
@@ -271,10 +275,12 @@ export function buildApp({
     app.put('/api/me/location', {
       ...auth,
       schema: {
-        body: { type: 'object', required: ['country', 'region'], properties: locationSchema },
+        body: { type: 'object', required: ['region'], properties: locationSchema },
       },
     }, async (req, reply) => {
-      const loc = await randomLocation(pool, req.body.country.toUpperCase(), req.body.region);
+      const country = serviceCountry(req.body);
+      if (!country) return fail(reply, 400, 'toss-o şu an yalnızca Türkiye\'de kullanılabilir.');
+      const loc = await randomLocation(pool, country, req.body.region);
       if (!loc) return fail(reply, 400, 'Bu il / bölge bulunamadı.');
       const u = await one(
         `update users set city = $2, lat = $3, lng = $4, country = $5, region_code = $6, place = $7

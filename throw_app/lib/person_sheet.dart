@@ -205,9 +205,7 @@ class _PersonSheetState extends State<_PersonSheet> {
               const Icon(Icons.place_outlined, size: 15, color: kRed),
               const SizedBox(width: 4),
               Flexible(
-                child: Text(
-                    [p.location, if (p.countryName != null) p.countryName]
-                        .join(' · '),
+                child: Text(p.location,
                     overflow: TextOverflow.ellipsis,
                     style: ui(13, weight: FontWeight.w600)),
               ),

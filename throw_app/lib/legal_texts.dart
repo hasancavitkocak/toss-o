@@ -38,12 +38,12 @@ $_controllerTr
 
 2. Hangi verileri işliyoruz?
 • Kimlik: adın (görünen ad) ve kullanıcı adın.
-• Konum: seçtiğin ülke ve il / bölge ile bu ilde rastgele seçilen yaklaşık bir nokta ve yakınındaki yerleşim adı. Cihazının GPS konumunu ALMAYIZ.
+• Konum: seçtiğin il ile bu ilde rastgele seçilen yaklaşık bir nokta ve yakınındaki yerleşim adı. Cihazının GPS konumunu ALMAYIZ.
 • İletişim içeriği: yazdığın ve sana gelen mektuplar, mektupların gönderim / açılma zamanı ve iki kişi arasındaki mesafe.
 • Sosyal ilişkiler: arkadaşlıkların, arkadaşlık isteklerin ve engellediğin kişiler.
 • Görsel: yüklersen profil fotoğrafın.
 • İşlem güvenliği: şifrenin geri döndürülemez özeti (şifrenin kendisi saklanmaz), oturum anahtarı, IP adresi ve sunucu kayıtları.
-• Tercihler: dil seçimin ve onay kayıtların (tarih ve metin sürümüyle).
+• Onaylar: aydınlatma metni ve kullanım koşulları onay kayıtların (tarih ve metin sürümüyle).
 
 3. Hangi amaçlarla ve hangi hukuki sebeplerle?
 • Hesabını oluşturmak, mektuplarını iletmek, arkadaşlık ve rastgele eşleşme özelliklerini sunmak: KVKK md. 5/2-c (sözleşmenin kurulması ve ifası).
@@ -59,7 +59,7 @@ Açık rızaya dayanan bir işleme faaliyetimiz yoktur.
 Verilerini satmayız ve reklam amacıyla kullanmayız.
 
 5. Yurt dışına aktarım
-Verilerin Türkiye'deki sunucularda saklanır. "Rastgele" seçeneğiyle gönderdiğin mektuplar yalnızca kendi ülkendeki kullanıcılarla eşleşir; verilerin rastgele eşleşme için yurt dışına aktarılmaz. Yurt dışında yaşayan bir arkadaşınla, onun arkadaşlık isteğini kabul ederek ve ona kendi isteğinle mektup göndererek yazışırsan, bu mektup ve görünen profil bilgilerin yalnızca o kişiye, aramızdaki sözleşmenin ifası için zorunlu olarak iletilir (KVKK md. 9/6-b).
+toss-o yalnızca Türkiye'de hizmet verir. Verilerin Türkiye'deki sunucularda saklanır ve yurt dışına aktarılmaz. Uygulama yalnızca bizim sunucularımıza bağlanır.
 
 6. Ne kadar süre saklıyoruz?
 Verilerini hesabın açık olduğu sürece saklarız. Hesabını sildiğinde mektupların, arkadaşlıkların, isteklerin ve fotoğrafın derhal ve kalıcı olarak silinir; karşı tarafa gönderdiğin mektuplar da silinir. Güvenlik kayıtları [SÜRE] süreyle tutulur.
@@ -78,7 +78,7 @@ Sürüm: $kLegalVersion
 toss-o'yu kullanarak aşağıdaki koşulları kabul etmiş olursun.
 
 1. Hizmet
-toss-o, yazdığın mektubu kağıt uçak animasyonuyla arkadaşlarına ya da kendi ülkendeki rastgele bir kullanıcıya göndermeni sağlar. Hizmet olduğu gibi sunulur; kesintisiz çalışacağını garanti etmeyiz.
+toss-o, yazdığın mektubu kağıt uçak animasyonuyla arkadaşlarına ya da Türkiye'deki rastgele bir kullanıcıya göndermeni sağlar. Hizmet olduğu gibi sunulur; kesintisiz çalışacağını garanti etmeyiz.
 
 2. Hesabın
 • Uygulamayı kullanmak için en az 13 yaşında olmalısın.
@@ -119,12 +119,12 @@ $_controllerEn
 
 2. What data we process
 • Identity: your display name and username.
-• Location: the country and region you choose, plus an approximate point picked at random within that region and the name of a nearby place. We NEVER collect your device's GPS location.
+• Location: the province you choose, plus an approximate point picked at random within that region and the name of a nearby place. We NEVER collect your device's GPS location.
 • Communication content: the letters you write and receive, when they were sent / opened and the distance between the two people.
 • Social connections: your friends, friend requests and the people you block.
 • Image: your profile photo, if you upload one.
 • Security: a one-way hash of your password (the password itself is never stored), session token, IP address and server logs.
-• Preferences: your language and your approval records (with date and document version).
+• Approvals: your records of accepting the privacy notice and terms (with date and document version).
 
 3. Why, and on what legal basis
 • To create your account, deliver your letters and provide friends and random matching: KVKK Art. 5/2-c (performance of a contract).
@@ -140,7 +140,7 @@ We do not carry out any processing based on explicit consent.
 We never sell your data or use it for advertising.
 
 5. Transfers abroad
-Your data is stored on servers in Türkiye. Letters sent with the "Random" option are only matched with users in your own country; your data is not transferred abroad for random matching. If you correspond with a friend living abroad, by accepting their friend request and sending them letters at your own request, that letter and your visible profile details are delivered only to that person, as necessary to perform our contract with you (KVKK Art. 9/6-b).
+toss-o is only available in Türkiye. Your data is stored on servers in Türkiye and is not transferred abroad. The app only connects to our own servers.
 
 6. How long we keep it
 We keep your data while your account is open. When you delete your account, your letters, friendships, requests and photo are deleted immediately and permanently, including letters you sent to others. Security logs are kept for [PERIOD].
@@ -159,7 +159,7 @@ Version: $kLegalVersion
 By using toss-o you agree to these terms.
 
 1. The service
-toss-o lets you send a letter as a paper plane animation to your friends or to a random user in your country. The service is provided as is; we don't guarantee it will be uninterrupted.
+toss-o lets you send a letter as a paper plane animation to your friends or to a random user in Türkiye. The service is provided as is; we don't guarantee it will be uninterrupted.
 
 2. Your account
 • You must be at least 13 years old to use the app.

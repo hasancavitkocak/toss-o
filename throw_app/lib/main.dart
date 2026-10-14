@@ -37,7 +37,7 @@ class TossApp extends StatefulWidget {
 }
 
 class _TossAppState extends State<TossApp> {
-  static const _tokenKey = 'tosso_token', _langKey = 'tosso_lang';
+  static const _tokenKey = 'tosso_token';
   final api = Api();
   Person? me;
   bool loading = true;
@@ -51,10 +51,6 @@ class _TossAppState extends State<TossApp> {
   /// Kayıtlı oturum varsa sunucudan doğrulayıp devam et
   Future<void> _restore() async {
     final prefs = await SharedPreferences.getInstance();
-    // Dil: kayıtlı seçim, yoksa cihaz dili
-    final saved = prefs.getString(_langKey);
-    language.value = saved == null ? deviceLang() : Lang.values.byName(saved);
-    language.addListener(() => prefs.setString(_langKey, language.value.name));
     final token = prefs.getString(_tokenKey);
     if (token != null) {
       api.token = token;

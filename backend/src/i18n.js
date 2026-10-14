@@ -33,6 +33,7 @@ const EN = {
   'İsteğin zaten gönderildi, onay bekleniyor.': 'Request already sent, waiting for approval.',
   'Şifren hatalı.': 'Wrong password.',
   'Eksik ya da hatalı bilgi gönderildi.': 'Some information is missing or invalid.',
+  "toss-o şu an yalnızca Türkiye'de kullanılabilir.": 'toss-o is currently only available in Türkiye.',
   'Kayıt için Kullanım Koşulları ve Aydınlatma Metni onaylanmalı.':
     'You must accept the Terms of Use and the Privacy Notice to sign up.',
 };

@@ -32,7 +32,7 @@ class Person {
       id: 'random',
       username: '',
       name: 'Rastgele',
-      city: 'ülkenden biri',
+      city: "Türkiye'den biri",
       at: LatLng(0, 0),
       random: true);
 

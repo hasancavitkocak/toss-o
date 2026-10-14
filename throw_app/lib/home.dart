@@ -1181,10 +1181,7 @@ class _LocationSheet extends StatefulWidget {
 }
 
 class _LocationSheetState extends State<_LocationSheet> {
-  late GeoOption? country = widget.me.country == null
-      ? null
-      : GeoOption(
-          widget.me.country!, widget.me.countryName ?? widget.me.country!);
+  GeoOption? country = kServiceCountry;
   GeoOption? region;
   bool busy = false;
   String? error;

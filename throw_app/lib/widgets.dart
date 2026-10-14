@@ -462,37 +462,3 @@ void showToast(BuildContext context, String text) {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ));
 }
-
-/// TR | EN dil seçici; [onChanged] seçilen dili sunucuya da bildirmek için
-class LangSwitch extends StatelessWidget {
-  final ValueChanged<Lang>? onChanged;
-  const LangSwitch({super.key, this.onChanged});
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-            color: kGround, borderRadius: BorderRadius.circular(18)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          for (final l in Lang.values)
-            GestureDetector(
-              onTap: () {
-                if (language.value == l) return;
-                language.value = l;
-                onChanged?.call(l);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                    color: language.value == l ? kNavy : Colors.transparent,
-                    borderRadius: BorderRadius.circular(15)),
-                child: Text(l.name.toUpperCase(),
-                    style: ui(12.5,
-                        weight: FontWeight.w800,
-                        color: language.value == l ? Colors.white : kMuted)),
-              ),
-            ),
-        ]),
-      );
-}

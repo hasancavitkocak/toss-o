@@ -23,10 +23,8 @@ class _LoginScreenState extends State<LoginScreen> {
   // KVKK: aydınlatma metni ve kullanım koşulları onayı
   bool notice = false, terms = false;
   String? error;
-  // Türkçe kullanan çoğunlukla Türkiye'dedir; İngilizcede ülke boş başlar
-  GeoOption? country =
-          language.value == Lang.tr ? const GeoOption('TR', 'Türkiye') : null,
-      region;
+  // Hizmet yalnızca Türkiye'de: ülke sabit, yalnızca il seçilir
+  GeoOption? country = kServiceCountry, region;
 
   @override
   void dispose() {
@@ -111,8 +109,6 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Align(
-                      alignment: Alignment.centerRight, child: LangSwitch()),
                   const Logo(height: 120),
                   const SizedBox(height: 10),
                   Text(txt.tagline,

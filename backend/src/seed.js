@@ -13,13 +13,13 @@ const BOTS = [
   ['elif', 'Elif', 'TR', '35'], // İzmir
   ['can', 'Can', 'TR', '68'], // Ankara
   ['zeynep', 'Zeynep', 'TR', '07'], // Antalya
-  ['mert', 'Mert', 'DE', '16'], // Berlin
-  ['yuki', 'Yuki', 'JP', '40'], // Tokyo
-  ['lucia', 'Lucía', 'ES', '56'], // Katalonya
-  ['noah', 'Noah', 'US', 'NY'], // New York
-  ['amara', 'Amara', 'PT', '14'], // Lizbon
-  ['leila', 'Leila', 'MA', '07'], // Marakeş-Safi
-  ['mateo', 'Mateo', 'AR', '07'], // Buenos Aires
+  ['mert', 'Mert', 'TR', '61'], // Trabzon
+  ['ece', 'Ece', 'TR', '26'], // Eskişehir
+  ['burak', 'Burak', 'TR', '83'], // Gaziantep
+  ['selin', 'Selin', 'TR', '48'], // Muğla
+  ['emre', 'Emre', 'TR', '25'], // Erzurum
+  ['defne', 'Defne', 'TR', '17'], // Çanakkale
+  ['kerem', 'Kerem', 'TR', '21'], // Diyarbakır
 ];
 const FRIENDS = [
   ['hasan', 'elif'],
@@ -32,12 +32,12 @@ const FRIENDS = [
 ];
 // Onay bekleyen istekler: [gönderen, alıcı]
 const REQUESTS = [
-  ['lucia', 'hasan'],
-  ['mateo', 'ayse'],
+  ['defne', 'hasan'],
+  ['kerem', 'ayse'],
 ];
 const LETTERS = [
   ['elif', 'hasan', 'hoş geldin !!\nilk uçağımı sana atıyorum.\nbakalım kim daha uzağa fırlatacak?\nsevgiyle,\nelif.', false, true],
-  ['yuki', 'ayse', 'konnichiwa !!\ntokyodan rastgele bir merhaba.\nburada kiraz ağaçları çiçek açtı.\nyuki.', true, false],
+  ['selin', 'ayse', 'merhaba !!\nmuğla\'dan rastgele bir selam.\nburada deniz pırıl pırıl,\nbir gün sen de gel.\nselin.', true, false],
 ];
 
 export const TEST_PASSWORD = 'toss1234';
@@ -60,7 +60,7 @@ export async function seed(pool, { log } = {}) {
          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(), now(), $12)
          returning *`,
         [username, name, hash, loc.regionName, loc.lat, loc.lng, country, region, loc.place, isBot,
-          country === 'TR' ? 'tr' : 'en', LEGAL_VERSION],
+          'tr', LEGAL_VERSION],
       );
       users[username] = r.rows[0];
     }
