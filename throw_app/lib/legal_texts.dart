@@ -3,7 +3,7 @@
 // kontrol ettirilmelidir. Metin değişince backend/src/legal.js içindeki
 // LEGAL_VERSION ile buradaki kLegalVersion birlikte artırılır.
 
-const kLegalVersion = '2026-10-14.2';
+const kLegalVersion = '2026-10-14.3';
 
 enum LegalDoc { notice, terms }
 
@@ -42,6 +42,7 @@ $_controllerTr
 • İletişim içeriği: yazdığın ve sana gelen mektuplar, mektupların gönderim / açılma zamanı ve iki kişi arasındaki mesafe.
 • Sosyal ilişkiler: arkadaşlıkların, arkadaşlık isteklerin ve engellediğin kişiler.
 • Görsel: yüklersen profil fotoğrafın.
+• Satın alma: aldığın paket, tarih ve Google Play'in verdiği işlem numarası. Kart ve ödeme bilgilerin Google tarafından işlenir, bize hiç ulaşmaz.
 • İşlem güvenliği: şifrenin geri döndürülemez özeti (şifrenin kendisi saklanmaz), oturum anahtarı, IP adresi ve sunucu kayıtları.
 • Onaylar: aydınlatma metni ve kullanım koşulları onay kayıtların (tarih ve metin sürümüyle).
 
@@ -53,13 +54,14 @@ Açık rızaya dayanan bir işleme faaliyetimiz yoktur.
 
 4. Verilerin kimlerle paylaşılır?
 • Diğer kullanıcılar: adın, kullanıcı adın, fotoğrafın, il / yerleşim adın ve yaklaşık konumun; arkadaşların, mektup gönderdiğin kişiler ve seni aramada bulan kişiler tarafından görülebilir. Mektubun yalnızca alıcısı tarafından okunur.
+• Google Play: satın alma yaparsan ödeme Google üzerinden gerçekleşir; satın almanın geçerli olduğunu doğrulamak için işlem numarası Google'a sorulur.
 • Barındırma hizmeti: verilerin [BARINDIRMA SAĞLAYICISI], Türkiye üzerinde saklanır.
 • Harita, yazı tipleri ve avatarlar: uygulama yalnızca bizim sunucularımıza bağlanır. Harita görselleri (kaynak: OpenStreetMap / OpenFreeMap) sunucumuz üzerinden önbellekli olarak iletilir; harita sağlayıcısına yalnızca sunucumuz bağlanır, IP adresin ya da başka bir verin iletilmez. Yazı tipleri ve avatarlar uygulamanın içindedir.
 • Yetkili kamu kurumları: yalnızca hukuken zorunlu olduğunda.
 Verilerini satmayız ve reklam amacıyla kullanmayız.
 
 5. Yurt dışına aktarım
-toss-o yalnızca Türkiye'de hizmet verir. Verilerin Türkiye'deki sunucularda saklanır ve yurt dışına aktarılmaz. Uygulama yalnızca bizim sunucularımıza bağlanır.
+toss-o yalnızca Türkiye'de hizmet verir. Verilerin Türkiye'deki sunucularda saklanır ve yurt dışına aktarılmaz; uygulama yalnızca bizim sunucularımıza bağlanır. Tek istisna isteğe bağlı satın almadır: hak satın alırsan ödeme, Google'ın kendi koşullarıyla Google Play üzerinden yapılır ve satın almayı doğrulamak için yalnızca işlem numarası Google'a sorulur. Bu aktarım, satın alma sözleşmesinin kurulması ve ifası için zorunludur (KVKK md. 9/6-b).
 
 6. Ne kadar süre saklıyoruz?
 Verilerini hesabın açık olduğu sürece saklarız. Hesabını sildiğinde mektupların, arkadaşlıkların, isteklerin ve fotoğrafın derhal ve kalıcı olarak silinir; karşı tarafa gönderdiğin mektuplar da silinir. Güvenlik kayıtları [SÜRE] süreyle tutulur.
@@ -80,12 +82,20 @@ toss-o'yu kullanarak aşağıdaki koşulları kabul etmiş olursun.
 1. Hizmet
 toss-o, yazdığın mektubu kağıt uçak animasyonuyla arkadaşlarına ya da Türkiye'deki rastgele bir kullanıcıya göndermeni sağlar. Hizmet olduğu gibi sunulur; kesintisiz çalışacağını garanti etmeyiz.
 
-2. Hesabın
+2. Mektup hakları ve teslim
+• Her gün 1 ücretsiz yeni mektup hakkın olur; hak Türkiye saatiyle gece yarısı yenilenir ve biriktirilmez.
+• Sana gelen her mektuba 1 cevap ücretsizdir.
+• Mektuplar anında değil, mesafeye göre 15 dakika ile 12 saat arasında ulaşır.
+• Ek mektup hakları Google Play üzerinden paket olarak satın alınır. Satın alınan haklar hesabına anında tanımlanır, süresizdir ve kullanılınca düşer; nakde çevrilemez, başka hesaba aktarılamaz.
+• Haklar dijital içerik olarak anında ifa edildiğinden, satın alırken verdiğin onayla Mesafeli Sözleşmeler Yönetmeliği md. 15/1-ğ uyarınca cayma hakkın bulunmaz. Hatalı ya da yansımayan bir ödemede iade için Google Play'e ya da bize başvurabilirsin; tüketici hakların saklıdır.
+• Hesabını silersen kullanılmamış hakların da silinir.
+
+3. Hesabın
 • Uygulamayı kullanmak için en az 13 yaşında olmalısın.
 • Hesabının ve şifrenin güvenliğinden sen sorumlusun; şifreni kimseyle paylaşma.
 • Başkasının kimliğine bürünemezsin.
 
-3. Kurallar
+4. Kurallar
 Mektuplarda ve profilinde şunları paylaşamazsın:
 • Hakaret, taciz, tehdit, nefret söylemi ya da ayrımcılık,
 • Müstehcen içerik, şiddet ya da yasa dışı faaliyet,
@@ -93,16 +103,16 @@ Mektuplarda ve profilinde şunları paylaşamazsın:
 • Spam, reklam ya da dolandırıcılık.
 Rahatsız olduğun kişiyi engelleyebilirsin. Kurallara uymayan hesapları uyarmadan askıya alabilir ya da silebiliriz.
 
-4. İçerik
+5. İçerik
 Yazdığın mektuplar sana aittir. Onları alıcıya iletebilmemiz için gereken ölçüde işlememize izin vermiş olursun. Gönderilmiş bir mektup alıcının gelen kutusunda kalır.
 
-5. Sorumluluk
+6. Sorumluluk
 Kullanıcıların birbirine gönderdiği içerikten içeriği gönderen sorumludur. Yasaların izin verdiği ölçüde, hizmetin kullanımından doğan dolaylı zararlardan sorumlu değiliz.
 
-6. Değişiklikler ve fesih
+7. Değişiklikler ve fesih
 Koşulları değiştirebiliriz; önemli değişikliklerde uygulamada yeniden onayını isteriz. Hesabını istediğin zaman Profil > Hesabımı sil ile kapatabilirsin.
 
-7. Uygulanacak hukuk
+8. Uygulanacak hukuk
 Bu koşullara Türkiye Cumhuriyeti hukuku uygulanır.
 
 İletişim: [İLETİŞİM E-POSTA ADRESİ]
@@ -123,6 +133,7 @@ $_controllerEn
 • Communication content: the letters you write and receive, when they were sent / opened and the distance between the two people.
 • Social connections: your friends, friend requests and the people you block.
 • Image: your profile photo, if you upload one.
+• Purchases: the package you bought, the date and the order number issued by Google Play. Your card and payment details are processed by Google and never reach us.
 • Security: a one-way hash of your password (the password itself is never stored), session token, IP address and server logs.
 • Approvals: your records of accepting the privacy notice and terms (with date and document version).
 
@@ -134,13 +145,14 @@ We do not carry out any processing based on explicit consent.
 
 4. Who can see your data
 • Other users: your name, username, photo, region / place name and approximate location can be seen by your friends, people you write to and people who find you in search. A letter is read only by its recipient.
+• Google Play: if you buy something, the payment is handled by Google; the order number is checked with Google to verify the purchase.
 • Hosting: your data is stored with [HOSTING PROVIDER], Türkiye.
 • Map, fonts and avatars: the app only connects to our own servers. Map tiles (source: OpenStreetMap / OpenFreeMap) are relayed and cached by our server; only our server contacts the map provider, so your IP address and other data are never passed on. Fonts and avatars are built into the app.
 • Public authorities: only where legally required.
 We never sell your data or use it for advertising.
 
 5. Transfers abroad
-toss-o is only available in Türkiye. Your data is stored on servers in Türkiye and is not transferred abroad. The app only connects to our own servers.
+toss-o is only available in Türkiye. Your data is stored on servers in Türkiye and is not transferred abroad; the app only connects to our own servers. The only exception is optional purchases: if you buy letters, payment is made via Google Play under Google's own terms and only the order number is checked with Google to verify the purchase. This transfer is necessary to conclude and perform the purchase (KVKK Art. 9/6-b).
 
 6. How long we keep it
 We keep your data while your account is open. When you delete your account, your letters, friendships, requests and photo are deleted immediately and permanently, including letters you sent to others. Security logs are kept for [PERIOD].
@@ -161,12 +173,20 @@ By using toss-o you agree to these terms.
 1. The service
 toss-o lets you send a letter as a paper plane animation to your friends or to a random user in Türkiye. The service is provided as is; we don't guarantee it will be uninterrupted.
 
-2. Your account
+2. Letters and delivery
+• You get 1 free new letter every day; it renews at midnight Türkiye time and does not accumulate.
+• Replying once to each letter you receive is free.
+• Letters are not delivered instantly but in 15 minutes to 12 hours depending on distance.
+• Extra letters can be bought as packages via Google Play. They are added to your account immediately, never expire and are used up when you send; they cannot be exchanged for cash or transferred.
+• As digital content delivered immediately, with the consent you give at purchase, they are not subject to a right of withdrawal. For a failed or incorrect payment you can contact Google Play or us; your statutory consumer rights are unaffected.
+• If you delete your account, unused letters are deleted too.
+
+3. Your account
 • You must be at least 13 years old to use the app.
 • You're responsible for keeping your account and password safe; don't share your password.
 • You may not impersonate anyone.
 
-3. Rules
+4. Rules
 You may not share in letters or on your profile:
 • Insults, harassment, threats, hate speech or discrimination,
 • Sexually explicit content, violence or illegal activity,
@@ -174,16 +194,16 @@ You may not share in letters or on your profile:
 • Spam, advertising or scams.
 You can block anyone who bothers you. We may suspend or delete accounts that break the rules without notice.
 
-4. Content
+5. Content
 Your letters belong to you. You allow us to process them as needed to deliver them to the recipient. A delivered letter stays in the recipient's inbox.
 
-5. Liability
+6. Liability
 The sender is responsible for the content users send each other. To the extent permitted by law, we're not liable for indirect damages arising from use of the service.
 
-6. Changes and termination
+7. Changes and termination
 We may change these terms; for significant changes we'll ask for your approval again in the app. You can close your account any time via Profile > Delete my account.
 
-7. Governing law
+8. Governing law
 These terms are governed by the laws of the Republic of Türkiye.
 
 Contact: [CONTACT EMAIL]

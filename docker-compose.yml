@@ -31,6 +31,9 @@ services:
       SEED: ${SEED:-true}
       # web (nginx) docker ağından gelir; giriş sınırı gerçek istemci IP'sine uygulansın
       TRUST_PROXY: 172.16.0.0/12
+      # Google Play satın alma doğrulaması (Play Console servis hesabı)
+      GOOGLE_PLAY_PACKAGE: ${GOOGLE_PLAY_PACKAGE:-}
+      GOOGLE_PLAY_SERVICE_ACCOUNT: ${GOOGLE_PLAY_SERVICE_ACCOUNT:-}
     depends_on:
       db:
         condition: service_healthy

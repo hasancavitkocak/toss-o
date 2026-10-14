@@ -2,6 +2,7 @@ import { buildApp } from './app.js';
 import { backfillLocations, createPool, migrate, waitForDb } from './db.js';
 import { seed } from './seed.js';
 import { seedGeo } from './geo.js';
+import { googlePlayFromEnv } from './play.js';
 
 const env = process.env;
 const DEFAULT_SECRET = 'gelistirme-anahtari-degistir';
@@ -22,7 +23,10 @@ const app = buildApp({
   jwtSecret: env.JWT_SECRET ?? DEFAULT_SECRET,
   logger: true,
   trustProxy: env.TRUST_PROXY || false,
+  verifyGooglePurchase: googlePlayFromEnv(env),
+  allowTestPurchases: env.ALLOW_TEST_PURCHASES === 'true',
 });
+if (env.ALLOW_TEST_PURCHASES === 'true') app.log.warn('TEST SATIN ALMA AÇIK: yayında kapatılmalı');
 if (!env.JWT_SECRET) app.log.warn('JWT_SECRET ayarlı değil, geliştirme anahtarı kullanılıyor');
 
 await app.listen({ port: Number(env.PORT ?? 3000), host: env.HOST ?? '0.0.0.0' });

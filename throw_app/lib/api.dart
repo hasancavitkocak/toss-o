@@ -1,14 +1,19 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'i18n.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show ValueNotifier, kIsWeb;
 import 'package:http/http.dart' as http;
 import 'models.dart';
 
 class ApiException implements Exception {
   final String message;
   final int status;
-  const ApiException(this.message, [this.status = 0]);
+
+  /// Sunucunun hata kodu (ör. 'no_credits': mektup hakkı kalmadı)
+  final String? code;
+  const ApiException(this.message, [this.status = 0, this.code]);
+
+  bool get noCredits => code == 'no_credits';
   @override
   String toString() => message;
 }
@@ -34,6 +39,9 @@ class Api {
 
   /// Son alınan hesap ayarları (dil, KVKK onayları)
   Settings settings = const Settings();
+
+  /// Son bilinen mektup hakları; değişince dinleyenler (hak göstergesi) güncellenir
+  final credits = ValueNotifier<Credits>(const Credits());
   final _client = http.Client();
 
   static String defaultBase() {
@@ -61,9 +69,13 @@ class Api {
       throw ApiException(txt.serverUnreachable);
     }
     final data = text.isEmpty ? null : jsonDecode(text);
+    if (data is Map && data['credits'] is Map) {
+      credits.value = Credits.fromJson(data['credits'] as Map<String, dynamic>);
+    }
     if (res.statusCode >= 400) {
       final msg = data is Map ? data['error'] as String? : null;
-      throw ApiException(msg ?? txt.unexpectedError, res.statusCode);
+      throw ApiException(msg ?? txt.unexpectedError, res.statusCode,
+          data is Map ? data['code'] as String? : null);
     }
     return data;
   }
@@ -218,6 +230,30 @@ class Api {
         for (final l in await _send('GET', '/letters/inbox') as List)
           Letter.fromJson(l as Map<String, dynamic>)
       ];
+
+  /// Güncel hak durumu
+  Future<Credits> refreshCredits() async {
+    final c = Credits.fromJson(await _send('GET', '/credits'));
+    credits.value = c;
+    return c;
+  }
+
+  /// Google Play satın almasını sunucuya doğrulat, hakları ekle
+  Future<Credits> verifyGooglePurchase(
+      String productId, String purchaseToken) async {
+    final c = Credits.fromJson(await _send('POST', '/purchases/google',
+        {'productId': productId, 'purchaseToken': purchaseToken}));
+    credits.value = c;
+    return c;
+  }
+
+  /// Yalnızca geliştirme sunucusunda: ödemesiz paket
+  Future<Credits> testPurchase(String productId) async {
+    final c = Credits.fromJson(
+        await _send('POST', '/purchases/test', {'productId': productId}));
+    credits.value = c;
+    return c;
+  }
 
   Future<List<Letter>> sent() async => [
         for (final l in await _send('GET', '/letters/sent') as List)

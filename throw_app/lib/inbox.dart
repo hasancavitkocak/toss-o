@@ -8,6 +8,7 @@ import 'engine3d.dart';
 import 'i18n.dart';
 import 'models.dart';
 import 'person_sheet.dart';
+import 'store.dart';
 import 'widgets.dart';
 
 /// Gelen / gönderilen mektuplar (alt sayfa). Açılacak gelen mektubu döndürür.
@@ -102,10 +103,14 @@ class _LettersSheetState extends State<_LettersSheet>
                 decoration:
                     const BoxDecoration(color: kRed, shape: BoxShape.circle)),
           if (!incoming)
-            Text(l.unread ? txt.notOpened : txt.readMark,
+            Text(sentStatus(l),
                 style: ui(11,
                     weight: FontWeight.w700,
-                    color: l.unread ? kMuted : const Color(0xFF22B45A))),
+                    color: l.inFlight
+                        ? kRed
+                        : l.unread
+                            ? kMuted
+                            : const Color(0xFF22B45A))),
         ],
       ),
     );
@@ -221,7 +226,7 @@ Future<void> showSentLetter(BuildContext context, Letter l) => showDialog(
                       bottom: 10,
                       child: Text(
                           '${txt.toName(l.to!.name)} · ${txt.ago(l.sentAt)} · '
-                          '${l.unread ? txt.notOpenedYet : txt.readMark}',
+                          '${l.inFlight ? sentStatus(l) : l.unread ? txt.notOpenedYet : txt.readMark}',
                           textAlign: TextAlign.center,
                           style: ui(11, color: kMuted)),
                     ),

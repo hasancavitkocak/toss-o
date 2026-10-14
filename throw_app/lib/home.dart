@@ -13,6 +13,7 @@ import 'location_picker.dart';
 import 'models.dart';
 import 'person_sheet.dart';
 import 'profile.dart';
+import 'store.dart';
 import 'widgets.dart';
 
 /// Uçuşun toplam süresi (sn): kalkış 1.4 + yolculuk 3.0 + iniş 2.4
@@ -63,6 +64,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int selected = 0;
   Person? dest;
   Letter? replyTo;
+
+  /// Son gönderilen mektup (varış zamanı için)
+  Letter? sentLetter;
+  late final store = Store(api)..onMessage = _toast;
   _BannerInfo? bannerInfo;
   List<FriendRequest> incomingReqs = [];
   final _seenReqs = <String>{};
@@ -93,11 +98,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ..start();
     _refresh(first: true);
     _poll = Timer.periodic(const Duration(seconds: 6), (_) => _pollAll());
+    store.init();
   }
 
   @override
   void dispose() {
     _ticker.dispose();
+    store.dispose();
     _hintTimer?.cancel();
     _poll?.cancel();
     for (final t in _timers) {
@@ -385,8 +392,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
+  void _toast(String m) {
+    if (mounted) showToast(context, m);
+  }
+
+  Future<void> _openStore({String? reason}) async {
+    focus.unfocus();
+    await showStoreSheet(context, api: api, store: store, reason: reason);
+  }
+
+  void _springBack() {
+    _springFrom = drag;
+    spring.forward(from: 0);
+  }
+
   Future<void> _launch(Offset v) async {
     final t = target;
+    // Cevap ücretsiz olabilir; yeni mektup için hak gerekir
+    if (replyTo == null && api.credits.value.total <= 0) {
+      _springBack();
+      _openStore(reason: txt.noLettersLeft);
+      return;
+    }
     setState(() {
       flying = true;
       banner = false;
@@ -408,7 +435,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           body: text.text.trim(),
           replyTo: replyTo?.id);
       if (!mounted) return;
-      setState(() => dest = letter.to);
+      setState(() {
+        dest = letter.to;
+        sentLetter = letter;
+      });
       _flyCamera(letter.to!, DateTime.now().difference(started));
     } on ApiException catch (e) {
       // Gönderilemedi: uçak geri gelir, mektup kaybolmaz
@@ -416,7 +446,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       flight.value = 0;
       setState(() => flying = false);
       _cam(_homeCam(), 900);
-      _hint(e.message);
+      if (e.noCredits) {
+        _openStore(reason: txt.noLettersLeft);
+      } else {
+        _hint(e.message);
+      }
       return;
     }
     await anim;
@@ -468,6 +502,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() {
       flying = landed = false;
       dest = null;
+      sentLetter = null;
       replyTo = null;
       drag = Offset.zero;
     });
@@ -766,6 +801,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Row(children: [
               const Logo(height: 42),
               const Spacer(),
+              CreditsChip(api: api, onTap: _openStore),
+              const SizedBox(width: 8),
               GlassButton(
                   size: 42,
                   onTap: _openFriends,
@@ -814,7 +851,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           top: cen.dy - AvatarPin.tipOffset(58),
           child: Opacity(
             opacity: pinIn,
-            child: AvatarPin(person: dest!, check: landed),
+            child: AvatarPin(
+                person: dest!,
+                check: landed && sentLetter != null && !sentLetter!.inFlight),
           ),
         ),
       // 3D kağıt / uçak: katlandıkça buruşur
@@ -1067,13 +1106,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final total = d == null ? 0.0 : distanceKm(me.at, d.at);
     final progress = landed ? 1.0 : clamp01((_ts - .2) / (kFlight - .6));
     final random = target.random && replyTo == null;
+    final eta = sentLetter?.deliverAt;
     final title = landed && d != null
-        ? txt.arrived(d.name)
+        ? (eta != null && eta.isAfter(DateTime.now())
+            ? txt.planeOnItsWay
+            : txt.arrived(d.name))
         : random
             ? txt.flyingRandom
             : txt.flyingTo(d?.name ?? target.name);
     final sub = landed && d != null
-        ? '${d.location} · ${txt.flew(txt.km(total))}'
+        ? '${d.name} · ${d.location} · ${eta != null && eta.isAfter(DateTime.now()) ? arrivalText(eta) : txt.km(total)}'
         : random || d == null
             ? txt.somewhereOnEarth
             : '${d.location} · ${txt.left(txt.km(total * (1 - progress)))}';

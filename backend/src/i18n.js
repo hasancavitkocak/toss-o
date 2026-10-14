@@ -34,6 +34,12 @@ const EN = {
   'Şifren hatalı.': 'Wrong password.',
   'Eksik ya da hatalı bilgi gönderildi.': 'Some information is missing or invalid.',
   "toss-o şu an yalnızca Türkiye'de kullanılabilir.": 'toss-o is currently only available in Türkiye.',
+  'Bugünkü ücretsiz mektup hakkını kullandın. Yarın yeni hakkın gelir ya da ek hak alabilirsin.':
+    "You've used today's free letter. You'll get a new one tomorrow, or you can buy more.",
+  'Satın alma şu an kullanılamıyor.': 'Purchases are not available right now.',
+  'Satın alma doğrulanamadı, birazdan tekrar dene.': "We couldn't verify the purchase, please try again shortly.",
+  'Satın alma geçersiz.': 'Invalid purchase.',
+  'Bu satın alma başka bir hesapta kullanılmış.': 'This purchase was already used on another account.',
   'Kayıt için Kullanım Koşulları ve Aydınlatma Metni onaylanmalı.':
     'You must accept the Terms of Use and the Privacy Notice to sign up.',
 };

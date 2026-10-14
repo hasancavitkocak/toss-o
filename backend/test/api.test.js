@@ -6,6 +6,7 @@ import { buildApp } from '../src/app.js';
 import { createPool, migrate } from '../src/db.js';
 import { seed, TEST_PASSWORD } from '../src/seed.js';
 import { seedGeo, randomLocation, distanceKm } from '../src/geo.js';
+import { deliveryMinutes } from '../src/credits.js';
 
 let db, server, pool, app;
 const botReplies = [];
@@ -17,13 +18,22 @@ before(async () => {
   pool = createPool('postgres://postgres:postgres@127.0.0.1:54331/postgres', 1);
   await migrate(pool);
   await seedGeo(pool);
+  // Diğer testler hak sınırına takılmasın: herkes bol hakla başlar;
+  // hak kuralları kendi testlerinde sıfır hakla denenir
+  await pool.query('alter table users alter column bonus_credits set default 1000');
   await seed(pool);
+  await pool.query('update users set bonus_credits = 1000');
   app = buildApp({
     pool,
     jwtSecret: 'test',
-    botDelayMs: [10, 20],
+    botAcceptMs: [10, 20],
+    botReplyMs: [0, 0],
+    deliveryMinutes: () => 0,
     onBotReply: (p) => botReplies.push(p),
     authRateLimit: { max: 1000, timeWindow: '1 minute' },
+    allowTestPurchases: true,
+    verifyGooglePurchase: async (productId, token) =>
+      ({ ok: token.startsWith('good'), orderId: token.startsWith('good') ? `GPA.${token}` : null }),
   });
   await app.ready();
 });
@@ -489,3 +499,138 @@ test('İngilizce: hata mesajları, ülke adları ve bot cevabı İngilizce', asy
   assert.equal(sw.body.settings.lang, 'tr');
 });
 
+
+const newUser = async (username, { bonus = 0 } = {}) => {
+  const r = await call('POST', '/api/auth/register', {
+    body: { username, password: 'gizli123', displayName: username, region: '34', acceptTerms: true, acceptNotice: true },
+  });
+  await pool.query('update users set bonus_credits = $2 where id = $1', [r.body.user.id, bonus]);
+  return r.body;
+};
+const befriend = async (a, b) => {
+  const r = await call('POST', '/api/friends/requests', { token: a.token, body: { username: b.user.username } });
+  await call('POST', `/api/friends/requests/${r.body.requestId}/accept`, { token: b.token });
+};
+
+test('teslim süresi mesafeye göre: en az 15 dk, en fazla 12 saat', () => {
+  assert.equal(deliveryMinutes(0), 15);
+  assert.equal(deliveryMinutes(5), 18);
+  assert.equal(deliveryMinutes(350), 225); // İstanbul -> Ankara ~3,5 sa
+  assert.equal(deliveryMinutes(1250), 720); // en uzak iller arası: 12 sa sınırı
+});
+
+test('haklar: günde 1 ücretsiz mektup, gelen mektuba 1 ücretsiz cevap, sonra satın alınan hak', async () => {
+  const a = await newUser('hak_a');
+  const b = await newUser('hak_b');
+  await befriend(a, b);
+
+  const me0 = (await call('GET', '/api/me', { token: a.token })).body.credits;
+  assert.equal(me0.dailyLeft, 1);
+  assert.equal(me0.bonus, 0);
+  assert.ok(me0.resetsAt);
+  assert.deepEqual(me0.products.map((p) => p.credits), [5, 15, 40]);
+
+  const first = await call('POST', '/api/letters', { token: a.token, body: { to: b.user.id, body: 'ilk' } });
+  assert.equal(first.status, 201);
+  assert.equal(first.body.cost, 'daily');
+  assert.equal(first.body.credits.dailyLeft, 0);
+
+  // Hak bitti: 402 ve güncel hak durumu
+  const second = await call('POST', '/api/letters', { token: a.token, body: { to: b.user.id, body: 'ikinci' } });
+  assert.equal(second.status, 402);
+  assert.equal(second.body.code, 'no_credits');
+  assert.match(second.body.error, /hakkını kullandın/);
+  const rnd = await call('POST', '/api/letters', { token: a.token, body: { to: 'random', body: 'rastgele' } });
+  assert.equal(rnd.status, 402);
+
+  // b'nin günlük hakkı ayrı; a'ya gelen mektuba a ücretsiz cevap verir
+  const fromB = await call('POST', '/api/letters', { token: b.token, body: { to: a.user.id, body: 'selam a' } });
+  assert.equal(fromB.body.cost, 'daily');
+  const rep1 = await call('POST', '/api/letters', {
+    token: a.token, body: { to: b.user.id, body: 'cevap', replyTo: fromB.body.id },
+  });
+  assert.equal(rep1.status, 201);
+  assert.equal(rep1.body.cost, 'reply');
+  // Aynı mektuba ikinci cevap ücretsiz değil
+  const rep2 = await call('POST', '/api/letters', {
+    token: a.token, body: { to: b.user.id, body: 'cevap 2', replyTo: fromB.body.id },
+  });
+  assert.equal(rep2.status, 402);
+
+  // Paket al: 5 hak eklenir, sonraki mektup haktan düşer
+  const bought = await call('POST', '/api/purchases/test', { token: a.token, body: { productId: 'tosso_hak_5' } });
+  assert.equal(bought.body.bonus, 5);
+  const paid = await call('POST', '/api/letters', { token: a.token, body: { to: b.user.id, body: 'paralı' } });
+  assert.equal(paid.body.cost, 'credit');
+  assert.equal(paid.body.credits.bonus, 4);
+  assert.equal(
+    (await call('POST', '/api/purchases/test', { token: a.token, body: { productId: 'yok' } })).status,
+    400,
+  );
+});
+
+test('mektup mesafeye göre gecikmeli ulaşır: varmadan görünmez, açılamaz', async () => {
+  const slow = buildApp({ pool, jwtSecret: 'test', deliveryMinutes: () => 90, botReplyMs: [0, 0] });
+  await slow.ready();
+  const req = async (method, url, token, body) => {
+    const res = await slow.inject({ method, url, payload: body, headers: { authorization: `Bearer ${token}` } });
+    return { status: res.statusCode, body: res.body ? res.json() : null };
+  };
+  const a = await newUser('yavas_a', { bonus: 5 });
+  const b = await newUser('yavas_b');
+  await befriend(a, b);
+
+  const sent = await req('POST', '/api/letters', a.token, { to: b.user.id, body: 'yolda bir mektup' });
+  assert.equal(sent.status, 201);
+  const eta = (new Date(sent.body.deliverAt) - Date.now()) / 60000;
+  assert.ok(eta > 85 && eta <= 90, `varış ${eta} dk sonra olmalı`);
+
+  // Alıcı henüz göremez ve açamaz; gönderen "yolda" görür
+  assert.equal((await req('GET', '/api/letters/inbox', b.token)).body.length, 0);
+  assert.equal((await req('GET', '/api/me', b.token)).body.stats.unread, 0);
+  assert.equal((await req('POST', `/api/letters/${sent.body.id}/open`, b.token)).status, 404);
+  const mine = (await req('GET', '/api/letters/sent', a.token)).body.find((l) => l.id === sent.body.id);
+  assert.ok(new Date(mine.deliverAt) > new Date());
+
+  // Varış zamanı gelince görünür
+  await pool.query("update letters set deliver_at = now() - interval '1 second' where id = $1", [sent.body.id]);
+  const inbox = (await req('GET', '/api/letters/inbox', b.token)).body;
+  assert.equal(inbox[0].id, sent.body.id);
+  assert.equal((await req('POST', `/api/letters/${sent.body.id}/open`, b.token)).status, 200);
+  await slow.close();
+});
+
+test('Google Play satın alma: doğrulanır, aynı satın alma iki kez sayılmaz', async () => {
+  const a = await newUser('play_a');
+  const b = await newUser('play_b');
+  const buy = (u, token, productId = 'tosso_hak_15') =>
+    call('POST', '/api/purchases/google', { token: u.token, body: { productId, purchaseToken: token } });
+
+  const ok = await buy(a, 'good-token-0001');
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.bonus, 15);
+  // Uygulama aynı satın almayı tekrar gönderirse hak ikinci kez eklenmez
+  assert.equal((await buy(a, 'good-token-0001')).body.bonus, 15);
+  // Başka hesap aynı satın almayı kullanamaz
+  assert.equal((await buy(b, 'good-token-0001')).status, 409);
+  // Geçersiz satın alma
+  assert.equal((await buy(b, 'bad-token-0001')).status, 400);
+  const { rows } = await pool.query("select count(*)::int as n from purchases where purchase_token = 'good-token-0001'");
+  assert.equal(rows[0].n, 1);
+
+  // Doğrulayıcı yoksa satın alma kapalı
+  const off = buildApp({ pool, jwtSecret: 'test' });
+  await off.ready();
+  const res = await off.inject({
+    method: 'POST', url: '/api/purchases/google',
+    payload: { productId: 'tosso_hak_5', purchaseToken: 'good-token-0002' },
+    headers: { authorization: `Bearer ${a.token}` },
+  });
+  assert.equal(res.statusCode, 503);
+  const test = await off.inject({
+    method: 'POST', url: '/api/purchases/test', payload: { productId: 'tosso_hak_5' },
+    headers: { authorization: `Bearer ${a.token}` },
+  });
+  assert.equal(test.statusCode, 404);
+  await off.close();
+});

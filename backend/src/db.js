@@ -123,6 +123,25 @@ alter table users add column if not exists legal_version text;
 alter table users drop column if exists abroad_consent;
 alter table users drop column if exists abroad_consent_at;
 
+-- Haklar: satın alınmış (süresiz) mektup hakları ve satın alma kayıtları
+alter table users add column if not exists bonus_credits integer not null default 0;
+create table if not exists purchases (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  product_id text not null,
+  credits integer not null,
+  platform text not null,
+  purchase_token text not null unique,
+  order_id text,
+  created_at timestamptz not null default now()
+);
+
+-- Mektubun bedeli (daily | reply | credit | bot | legacy) ve varış zamanı:
+-- mektup mesafeye göre uçar, deliver_at gelmeden alıcı göremez
+alter table letters add column if not exists cost text not null default 'legacy';
+alter table letters add column if not exists deliver_at timestamptz not null default now();
+create index if not exists letters_deliver_idx on letters (recipient_id, deliver_at);
+
 create index if not exists letters_recipient_idx on letters (recipient_id, sent_at desc);
 create index if not exists letters_sender_idx on letters (sender_id, sent_at desc);
 `;

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
@@ -7,6 +8,7 @@ import { countryName, distanceKm, randomLocation, sortTr } from './geo.js';
 import { scheduleBotAccept, scheduleBotReply } from './bots.js';
 import { langOf, translate } from './i18n.js';
 import { LEGAL_VERSION } from './legal.js';
+import { PRODUCTS, chargeLetter, creditJson, creditState, deliveryMinutes as defaultDelivery } from './credits.js';
 
 /** Hizmet verilen tek ülke: kayıt ve il seçimi yalnızca Türkiye'den */
 export const SERVICE_COUNTRY = 'TR';
@@ -34,6 +36,7 @@ const letterJson = (l, other) => ({
   replyTo: l.reply_to,
   distanceKm: Math.round(l.distance_km),
   sentAt: l.sent_at,
+  deliverAt: l.deliver_at,
   openedAt: l.opened_at,
   ...other,
 });
@@ -108,8 +111,16 @@ export function buildApp({
   pool,
   jwtSecret,
   logger = false,
-  botDelayMs = [6000, 10000],
+  // Bot arkadaşlık isteğini birkaç sn içinde onaylar, mektubu okuyup cevap yazması 5-20 dk sürer
+  botAcceptMs = [3000, 6000],
+  botReplyMs = [5 * 60_000, 20 * 60_000],
   onBotReply,
+  // Mesafeye göre uçuş süresi (dakika); testlerde 0
+  deliveryMinutes = defaultDelivery,
+  // Google Play satın alma doğrulayıcısı (play.js); yoksa satın alma kapalı
+  verifyGooglePurchase = null,
+  // Geliştirmede ödeme yapmadan hak ekleme (yayında kapalı olmalı)
+  allowTestPurchases = false,
   // Giriş / kayıt denemesi sınırı (IP başına), şifre tahminini yavaşlatır
   authRateLimit = { max: 10, timeWindow: '1 minute' },
   // nginx arkasında gerçek istemci IP'si için güvenilen vekil adresleri
@@ -140,6 +151,24 @@ export function buildApp({
     },
   };
   const me = (req) => req.user.sub;
+
+  /** Tek bağlantı üzerinde işlem (transaction); içeride yalnızca c kullanılmalı */
+  const tx = async (fn) => {
+    const c = await pool.connect();
+    try {
+      await c.query('begin');
+      const r = await fn(c);
+      await c.query('commit');
+      return r;
+    } catch (err) {
+      await c.query('rollback').catch(() => {});
+      throw err;
+    } finally {
+      c.release();
+    }
+  };
+  const credits = async (userId) =>
+    creditJson(await creditState(pool, userId), { testPurchases: allowTestPurchases });
   const token = (u) => app.jwt.sign({ sub: u.id });
 
   app.setErrorHandler((err, req, reply) => {
@@ -260,15 +289,77 @@ export function buildApp({
       const stats = await one(
         `select
            (select count(*) from letters where sender_id = $1)::int as sent,
-           (select count(*) from letters where recipient_id = $1)::int as received,
+           (select count(*) from letters where recipient_id = $1 and deliver_at <= now())::int as received,
            (select count(*) from letters l where recipient_id = $1 and opened_at is null
+             and deliver_at <= now()
              and not exists(select 1 from blocks b where b.blocker_id = $1 and b.blocked_id = l.sender_id))::int as unread,
            (select count(*) from friend_requests where to_id = $1 and status = 'pending')::int as requests,
            (select count(distinct r.city) from letters l join users r on r.id = l.recipient_id
              where l.sender_id = $1)::int as cities`,
         [u.id],
       );
-      return { user: publicUser(u), stats, settings: settingsJson(u) };
+      return { user: publicUser(u), stats, settings: settingsJson(u), credits: await credits(u.id) };
+    });
+
+    // ---------- haklar ve satın alma ----------
+
+    app.get('/api/credits', auth, async (req) => credits(me(req)));
+
+    /** Satın alınan hakları ekle; aynı satın alma iki kez sayılmaz */
+    const grantPurchase = async (userId, productId, platform, token, orderId) =>
+      tx(async (c) => {
+        const { rows } = await c.query(
+          `insert into purchases (user_id, product_id, credits, platform, purchase_token, order_id)
+           values ($1, $2, $3, $4, $5, $6) on conflict (purchase_token) do nothing returning user_id`,
+          [userId, productId, PRODUCTS[productId], platform, token, orderId],
+        );
+        if (rows.length) {
+          await c.query('update users set bonus_credits = bonus_credits + $2 where id = $1', [
+            userId,
+            PRODUCTS[productId],
+          ]);
+          return true;
+        }
+        const prev = await c.query('select user_id from purchases where purchase_token = $1', [token]);
+        return prev.rows[0]?.user_id === userId;
+      });
+
+    const productSchema = { type: 'string', enum: Object.keys(PRODUCTS) };
+
+    // Google Play: uygulama satın alma anahtarını gönderir, sunucu Google'a doğrulatır
+    app.post('/api/purchases/google', {
+      ...auth,
+      schema: {
+        body: {
+          type: 'object',
+          required: ['productId', 'purchaseToken'],
+          properties: { productId: productSchema, purchaseToken: { type: 'string', minLength: 10 } },
+        },
+      },
+    }, async (req, reply) => {
+      if (!verifyGooglePurchase) return fail(reply, 503, 'Satın alma şu an kullanılamıyor.');
+      const { productId, purchaseToken } = req.body;
+      let v;
+      try {
+        v = await verifyGooglePurchase(productId, purchaseToken);
+      } catch (err) {
+        req.log.error({ err }, 'Google Play doğrulaması başarısız');
+        return fail(reply, 502, 'Satın alma doğrulanamadı, birazdan tekrar dene.');
+      }
+      if (!v.ok) return fail(reply, 400, 'Satın alma geçersiz.');
+      const ok = await grantPurchase(me(req), productId, 'google', purchaseToken, v.orderId);
+      if (!ok) return fail(reply, 409, 'Bu satın alma başka bir hesapta kullanılmış.');
+      return credits(me(req));
+    });
+
+    // Yalnızca geliştirme: ödeme yapmadan paket ekle
+    app.post('/api/purchases/test', {
+      ...auth,
+      schema: { body: { type: 'object', required: ['productId'], properties: { productId: productSchema } } },
+    }, async (req, reply) => {
+      if (!allowTestPurchases) return fail(reply, 404, 'Satın alma şu an kullanılamıyor.');
+      await grantPurchase(me(req), req.body.productId, 'test', `test-${crypto.randomUUID()}`, null);
+      return credits(me(req));
     });
 
     // İl değiştir: yeni ilde yeni rastgele bir nokta
@@ -596,7 +687,7 @@ export function buildApp({
         [myId, target.id],
       );
       if (target.is_bot) {
-        onBotReply?.(scheduleBotAccept({ requestId: r.id, accept: () => acceptRequest(r.id, target.id), delayMs: botDelayMs, log: req.log }));
+        onBotReply?.(scheduleBotAccept({ accept: () => acceptRequest(r.id, target.id), delayMs: botAcceptMs, log: req.log }));
       }
       return reply.code(201).send({ status: 'pending', requestId: r.id, user: publicUser(target) });
     });
@@ -692,7 +783,8 @@ export function buildApp({
       let replyTo = null;
       if (req.body.replyTo) {
         const orig = UUID.test(req.body.replyTo)
-          ? await one('select id, sender_id from letters where id = $1 and recipient_id = $2', [
+          ? await one(`select id, sender_id from letters
+                       where id = $1 and recipient_id = $2 and deliver_at <= now()`, [
             req.body.replyTo,
             sender.id,
           ])
@@ -716,25 +808,44 @@ export function buildApp({
         }
       }
 
-      const letter = await one(
-        `insert into letters (sender_id, recipient_id, body, is_random, reply_to, distance_km)
-         values ($1, $2, $3, $4, $5, $6) returning *`,
-        [sender.id, recipient.id, body, isRandom, replyTo, distanceKm(sender, recipient)],
-      );
+      const km = distanceKm(sender, recipient);
+      const letter = await tx(async (c) => {
+        const cost = await chargeLetter(c, sender.id, replyTo);
+        if (!cost) return null;
+        const { rows } = await c.query(
+          `insert into letters (sender_id, recipient_id, body, is_random, reply_to, distance_km, cost, deliver_at)
+           values ($1, $2, $3, $4, $5, $6, $7, now() + make_interval(mins => $8)) returning *`,
+          [sender.id, recipient.id, body, isRandom, replyTo, km, cost, deliveryMinutes(km)],
+        );
+        return rows[0];
+      });
+      if (!letter) {
+        return reply.code(402).send({
+          error: translate('Bugünkü ücretsiz mektup hakkını kullandın. Yarın yeni hakkın gelir ya da ek hak alabilirsin.', langOf(req)),
+          code: 'no_credits',
+          credits: await credits(sender.id),
+        });
+      }
       if (recipient.is_bot) {
-        const p = scheduleBotReply({ pool, letter, bot: recipient, sender, delayMs: botDelayMs, log: req.log });
+        const p = scheduleBotReply({
+          pool, letter, bot: recipient, sender, thinkMs: botReplyMs, deliveryMinutes, log: req.log,
+        });
         if (p) onBotReply?.(p);
       }
-      return reply.code(201).send(letterJson(letter, { to: publicUser(recipient) }));
+      return reply.code(201).send({
+        ...letterJson(letter, { to: publicUser(recipient) }),
+        cost: letter.cost,
+        credits: await credits(sender.id),
+      });
     });
 
     app.get('/api/letters/inbox', auth, async (req) => {
       const { rows } = await pool.query(
         `select l.*, ${userJsonSql('s')} as other
          from letters l join users s on s.id = l.sender_id
-         where l.recipient_id = $1
+         where l.recipient_id = $1 and l.deliver_at <= now()
            and not exists(select 1 from blocks b where b.blocker_id = $1 and b.blocked_id = l.sender_id)
-         order by l.sent_at desc limit 100`,
+         order by l.deliver_at desc limit 100`,
         [me(req)],
       );
       return rows.map((l) => letterJson(l, { from: publicUser(l.other) }));
@@ -754,7 +865,7 @@ export function buildApp({
       if (!UUID.test(req.params.id)) return fail(reply, 404, 'Mektup bulunamadı.');
       const l = await one(
         `update letters set opened_at = coalesce(opened_at, now())
-         where id = $1 and recipient_id = $2 returning *`,
+         where id = $1 and recipient_id = $2 and deliver_at <= now() returning *`,
         [req.params.id, me(req)],
       );
       if (!l) return fail(reply, 404, 'Mektup bulunamadı.');

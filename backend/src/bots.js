@@ -39,7 +39,7 @@ export function botReplyText(bot, isFriend, lang = 'tr') {
 /** Bot, arkadaşlık isteğini birkaç saniye sonra kabul eder */
 export function scheduleBotAccept({ accept, delayMs, log }) {
   const [min, max] = delayMs;
-  const wait = (min + Math.random() * (max - min)) / 2;
+  const wait = min + Math.random() * (max - min);
   return new Promise((resolve) => {
     const t = setTimeout(async () => {
       try {
@@ -53,28 +53,30 @@ export function scheduleBotAccept({ accept, delayMs, log }) {
   });
 }
 
-/** Bota gelen mektuba birkaç saniye sonra cevap uçağı gönder */
-export function scheduleBotReply({ pool, letter, bot, sender, delayMs, log }) {
+/**
+ * Bot mektubu varınca okur, biraz düşünür ve cevap uçağı gönderir.
+ * Cevap hemen veritabanına yazılır ama gönderilme ve varış zamanı ileridedir;
+ * sunucu yeniden başlasa da kaybolmaz.
+ */
+export async function scheduleBotReply({ pool, letter, bot, sender, thinkMs, deliveryMinutes, log }) {
   if (sender.is_bot) return null;
-  const [min, max] = delayMs;
-  const wait = min + Math.random() * (max - min);
-  return new Promise((resolve) => {
-    const t = setTimeout(async () => {
-      try {
-        const { rows } = await pool.query(
-          'select 1 from friendships where user_id = $1 and friend_id = $2',
-          [bot.id, sender.id],
-        );
-        await pool.query(
-          `insert into letters (sender_id, recipient_id, body, reply_to, distance_km)
-           values ($1, $2, $3, $4, $5)`,
-          [bot.id, sender.id, botReplyText(bot, rows.length > 0, sender.lang), letter.id, letter.distance_km],
-        );
-      } catch (err) {
-        log?.error({ err }, 'bot cevabı gönderilemedi');
-      }
-      resolve();
-    }, wait);
-    t.unref?.();
-  });
+  const [min, max] = thinkMs;
+  const think = Math.round(min + Math.random() * (max - min));
+  try {
+    const { rows } = await pool.query(
+      'select 1 from friendships where user_id = $1 and friend_id = $2',
+      [bot.id, sender.id],
+    );
+    await pool.query(
+      `insert into letters (sender_id, recipient_id, body, reply_to, distance_km, cost, sent_at, deliver_at)
+       values ($1, $2, $3, $4, $5, 'bot',
+               $6::timestamptz + make_interval(secs => $7::float8 / 1000),
+               $6::timestamptz + make_interval(secs => $7::float8 / 1000 + $8::float8 * 60))`,
+      [bot.id, sender.id, botReplyText(bot, rows.length > 0, sender.lang), letter.id,
+        letter.distance_km, letter.deliver_at, think, deliveryMinutes(letter.distance_km)],
+    );
+  } catch (err) {
+    log?.error({ err }, 'bot cevabı yazılamadı');
+  }
+  return true;
 }

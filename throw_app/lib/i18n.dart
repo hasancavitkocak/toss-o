@@ -287,4 +287,44 @@ class S {
       _('onaylamak için şifren', 'your password to confirm');
   String get deleteForever =>
       _('Hesabımı kalıcı olarak sil', 'Delete my account permanently');
+
+  // ---------- haklar / mağaza ----------
+  String get creditsTitle => _('Mektup hakların', 'Your letters');
+  String get dailyFreeLeft =>
+      _('Bugün 1 ücretsiz mektup hakkın var', 'You have 1 free letter today');
+  String dailyUsed(String left) => _(
+      'Bugünkü ücretsiz hakkını kullandın · $left sonra yenilenir',
+      "You've used today's free letter · renews in $left");
+  String bonusCount(int n) =>
+      _('Satın aldığın haklar: $n', 'Purchased letters: $n');
+  String get replyFreeInfo => _('Sana gelen her mektuba 1 cevap ücretsiz.',
+      'Replying once to each letter you receive is free.');
+  String packLabel(int n) => _('$n mektup hakkı', '$n letters');
+  String get testFree => _('test · ücretsiz', 'test · free');
+  String get purchaseConsent => _(
+      'Satın aldığım hakların hesabıma anında tanımlanacağını ve dijital içerik anında ifa edildiği için cayma hakkımın bulunmadığını kabul ediyorum (Mesafeli Sözleşmeler Yönetmeliği md. 15/1-ğ).',
+      'I agree that the letters I buy are added to my account immediately and that, as digital content delivered immediately, they are not subject to a right of withdrawal.');
+  String get purchaseConsentNeeded => _(
+      'Satın almak için önce alttaki onay kutusunu işaretle.',
+      'Please tick the confirmation box first.');
+  String get storeUnavailable => _(
+      'Satın alma Google Play üzerinden yapılır; uygulama mağazada yayınlanınca açılacak.',
+      'Purchases are made via Google Play and will open once the app is published.');
+  String creditsAdded(int n) =>
+      _('$n mektup hakkı eklendi ✉', '$n letters added ✉');
+  String get purchaseFailed =>
+      _('Satın alma tamamlanamadı.', "The purchase couldn't be completed.");
+  String get purchasePending => _(
+      'Ödemen onay bekliyor; onaylanınca hakların eklenecek.',
+      'Your payment is pending; letters will be added once it is approved.');
+  String get noLettersLeft => _('Bugünkü ücretsiz mektubunu gönderdin ✉',
+      "You've sent today's free letter ✉");
+
+  // ---------- teslim ----------
+  String get planeOnItsWay =>
+      _('Uçağın yola çıktı ✈', 'Your plane is on its way ✈');
+  String arrivesIn(String dur, String hm) =>
+      _('yaklaşık $dur sonra varır ($hm)', 'arrives in about $dur ($hm)');
+  String inFlight(String dur) => _('yolda · $dur', 'in flight · $dur');
+  String get delivered => _('ulaştı', 'delivered');
 }

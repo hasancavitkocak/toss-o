@@ -61,6 +61,9 @@ class Letter {
   final String? replyTo;
   final int distanceKm;
   final DateTime sentAt;
+
+  /// Uçağın alıcıya varacağı (ya da vardığı) an
+  final DateTime deliverAt;
   final DateTime? openedAt;
   const Letter({
     required this.id,
@@ -71,10 +74,14 @@ class Letter {
     this.replyTo,
     required this.distanceKm,
     required this.sentAt,
+    DateTime? deliverAt,
     this.openedAt,
-  });
+  }) : deliverAt = deliverAt ?? sentAt;
 
   bool get unread => openedAt == null;
+
+  /// Gönderilen mektup hâlâ havada mı
+  bool get inFlight => deliverAt.isAfter(DateTime.now());
 
   factory Letter.fromJson(Map<String, dynamic> j) => Letter(
         id: j['id'] as String,
@@ -85,6 +92,9 @@ class Letter {
         replyTo: j['replyTo'] as String?,
         distanceKm: (j['distanceKm'] as num).round(),
         sentAt: DateTime.parse(j['sentAt'] as String).toLocal(),
+        deliverAt: j['deliverAt'] == null
+            ? null
+            : DateTime.parse(j['deliverAt'] as String).toLocal(),
         openedAt: j['openedAt'] == null
             ? null
             : DateTime.parse(j['openedAt'] as String).toLocal(),
@@ -105,6 +115,39 @@ class Stats {
         unread: j['unread'] as int,
         cities: j['cities'] as int,
         requests: j['requests'] as int? ?? 0,
+      );
+}
+
+/// Mektup hakları: günlük ücretsiz hak + satın alınmış (süresiz) haklar
+class Credits {
+  final int dailyLeft, bonus;
+  final DateTime? resetsAt;
+
+  /// Satılan paketler: ürün kimliği -> hak sayısı
+  final Map<String, int> products;
+
+  /// Geliştirme sunucusu ödeme yapmadan hak eklemeye izin veriyor mu
+  final bool testPurchases;
+  const Credits(
+      {this.dailyLeft = 1,
+      this.bonus = 0,
+      this.resetsAt,
+      this.products = const {},
+      this.testPurchases = false});
+
+  int get total => dailyLeft + bonus;
+
+  factory Credits.fromJson(Map<String, dynamic> j) => Credits(
+        dailyLeft: j['dailyLeft'] as int? ?? 0,
+        bonus: j['bonus'] as int? ?? 0,
+        resetsAt: j['resetsAt'] == null
+            ? null
+            : DateTime.parse(j['resetsAt'] as String).toLocal(),
+        products: {
+          for (final p in j['products'] as List? ?? const [])
+            (p as Map)['id'] as String: p['credits'] as int
+        },
+        testPurchases: j['testPurchases'] as bool? ?? false,
       );
 }
 

@@ -102,7 +102,10 @@ Hata yanıtları `{ "error": "Türkçe mesaj" }` biçimindedir.
 | GET | `/blocks` | Engellediklerin |
 | POST | `/users/:id/block` | Engelle (arkadaşlık biter, bekleyen istekler iptal olur) |
 | DELETE | `/users/:id/block` | Engeli kaldır |
-| POST | `/letters` | `{to: <kullanıcı id> \| "random", body, replyTo?}` → mektup + alıcı |
+| POST | `/letters` | `{to: <kullanıcı id> \| "random", body, replyTo?}` → mektup, alıcı, `cost`, güncel `credits`; hak yoksa **402** `{code: "no_credits"}` |
+| GET | `/credits` | Hak durumu: `{dailyLeft, bonus, resetsAt, products, testPurchases}` |
+| POST | `/purchases/google` | `{productId, purchaseToken}`: Google Play'e doğrulatır, hakları ekler (aynı satın alma iki kez sayılmaz) |
+| POST | `/purchases/test` | `{productId}`: yalnızca `ALLOW_TEST_PURCHASES=true` iken (geliştirme) ödemesiz paket |
 | GET | `/letters/inbox` | Gelen mektuplar |
 | GET | `/letters/sent` | Gönderilen mektuplar (`openedAt` ile okundu bilgisi) |
 | POST | `/letters/:id/open` | Mektubu okundu işaretle |
@@ -153,3 +156,19 @@ dilinde gelir. Uygulama metinleri `throw_app/lib/i18n.dart`, API çevirileri
 - **Metin değişirse:** `backend/src/legal.js` içindeki `LEGAL_VERSION` ile `legal_texts.dart` içindeki `kLegalVersion` birlikte artırılır. Uygulama açılışta yeniden onay ister.
 - **Haklar (md. 11):** Profil'den isim, il ve fotoğraf düzeltilir; Profil > Hesabımı sil tüm verileri siler. Diğer talepler metindeki e-posta adresine yapılır.
 - **Toplanmayan veriler:** GPS konumu ve ses kaydı alınmaz, mikrofon izni yok.
+
+## Mektup hakları ve teslim
+
+- **Günlük hak:** Günde 1 ücretsiz yeni mektup; Türkiye saatiyle gece yarısı yenilenir.
+- **Cevap:** Gelen her mektuba 1 cevap ücretsiz.
+- **Ek haklar:** Ek haklar Google Play'den tek seferlik paketlerle alınır: `tosso_hak_5`, `tosso_hak_15`, `tosso_hak_40`. Fiyatlar Play Console'da belirlenir. Satın alınan haklar süresizdir.
+- **Teslim süresi:** Mektup mesafeye göre uçar: `15 + 0,6 × km` dakika, en az 15 dk, en fazla 12 saat. Alıcı mektubu varınca görür; gönderen "yolda · 2 sa 10 dk" görür. Kurallar `backend/src/credits.js` dosyasındadır.
+
+**Google Play satın almayı açmak için:**
+1. Play Console'da uygulamayı oluştur. Paket adını (`applicationId`, şu an `com.example.throw_app`) kalıcı bir adla değiştir.
+2. Uygulamayı kapalı test kanalına yükle.
+3. Üç ürünü "tek seferlik ürün" olarak aynı kimliklerle ekle.
+4. Google Cloud'da bir servis hesabı aç ve Play Console > Kullanıcılar ve izinler'de ona "Finansal verileri görüntüle" ile "Siparişleri yönet" izinlerini ver.
+5. `.env` içine `GOOGLE_PLAY_PACKAGE` ve `GOOGLE_PLAY_SERVICE_ACCOUNT` değerlerini yaz.
+
+Geliştirme sunucusunda (`npm run dev`) test satın alma açıktır; mağazada "test · ücretsiz" butonları görünür. Docker/yayında kapalıdır.
