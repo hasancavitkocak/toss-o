@@ -2,9 +2,9 @@ import 'dart:math' as math;
 import 'package:maplibre_gl/maplibre_gl.dart' show LatLng;
 
 class Person {
-  /// [city] il / bölge adı, [place] o ildeki yerleşim (ilçe, kasaba)
+  /// [city] il adı; ilçe / kasaba gösterilmez
   final String id, username, name, city;
-  final String? place, country, countryName;
+  final String? country, countryName;
 
   /// Yüklenmiş profil fotoğrafının API'ye göre yolu; yoksa baş harf
   final String? photo;
@@ -16,16 +16,14 @@ class Person {
     required this.name,
     required this.city,
     required this.at,
-    this.place,
     this.country,
     this.countryName,
     this.photo,
     this.random = false,
   });
 
-  /// "Esenyurt, İstanbul" — yerleşim ile il aynıysa sadece il
-  String get location =>
-      place == null || place == city ? city : '$place, $city';
+  /// Gösterilen konum yalnızca il; ilçe / kasaba gösterilmez
+  String get location => city;
 
   /// Üstteki kişi seçicideki "Rastgele" kartı
   static const randomPick = Person(
@@ -41,7 +39,6 @@ class Person {
         username: j['username'] as String,
         name: j['displayName'] as String,
         city: j['city'] as String,
-        place: j['place'] as String?,
         country: j['country'] as String?,
         countryName: j['countryName'] as String?,
         photo: j['photo'] as String?,

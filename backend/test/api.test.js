@@ -156,7 +156,7 @@ test('kayıt ol, kullanıcı ara, arkadaş ekle; iki gerçek kullanıcı mektupl
   const token = reg.body.token;
   assert.equal(reg.body.user.city, 'Trabzon');
   assert.equal(reg.body.user.countryName, 'Türkiye');
-  assert.ok(reg.body.user.place);
+  assert.equal('place' in reg.body.user, false); // ilçe paylaşılmaz
   // Trabzon ili sınırları içinde (kabaca)
   assert.ok(reg.body.user.lat > 40.4 && reg.body.user.lat < 41.3, `${reg.body.user.lat}`);
   assert.ok(reg.body.user.lng > 38.9 && reg.body.user.lng < 40.5, `${reg.body.user.lng}`);

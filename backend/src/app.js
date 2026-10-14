@@ -22,8 +22,8 @@ const publicUser = (u) => ({
   id: u.id,
   username: u.username,
   displayName: u.display_name,
+  // Yalnızca il paylaşılır; ilçe / kasaba (place) sunucuda kalır
   city: u.city,
-  place: u.place ?? null,
   country: u.country ?? null,
   countryName: u.country ? countryName(u.country) : null,
   lat: u.lat,
@@ -48,7 +48,7 @@ const letterJson = (l, other) => ({
 const userJsonSql = (alias) =>
   `json_build_object('id', ${alias}.id, 'username', ${alias}.username,
      'display_name', ${alias}.display_name, 'city', ${alias}.city,
-     'place', ${alias}.place, 'country', ${alias}.country,
+     'country', ${alias}.country,
      'lat', ${alias}.lat, 'lng', ${alias}.lng,
      'avatar_version', ${alias}.avatar_version)`;
 
