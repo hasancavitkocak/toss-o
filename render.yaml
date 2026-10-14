@@ -1,0 +1,35 @@
+# Render Blueprint: Render'da New > Blueprint ile bu repo seçilince
+# veritabanı ve API birlikte kurulur. Admin paneli API ile gelir: /admin
+services:
+  - type: web
+    name: toss-o-api
+    runtime: docker
+    plan: free
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: toss-o-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      # Admin paneline girebilecek kullanıcı adları (virgülle)
+      - key: ADMIN_USERNAMES
+        value: hasan
+      # Deneme hesapları ve mektupları (test sunucusu)
+      - key: SEED
+        value: "true"
+      # Test sunucusu: ödeme yapmadan hak eklenebilir; yayında kaldırılmalı
+      - key: ALLOW_TEST_PURCHASES
+        value: "true"
+      # Render'ın yük dengeleyicisi iç ağdan gelir; giriş sınırı gerçek istemci IP'sine uygulansın
+      - key: TRUST_PROXY
+        value: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+
+databases:
+  - name: toss-o-db
+    plan: free
+    databaseName: tosso
+    user: tosso
